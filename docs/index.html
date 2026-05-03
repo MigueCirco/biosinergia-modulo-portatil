@@ -17,54 +17,46 @@
     </header>
 
     <main class="container">
-      <section class="hero-dashboard card">
+      <section class="status-card card">
         <div>
-          <p class="eyebrow">Resumen del módulo</p>
-          <h3 id="moduleTitle">Unidad portátil conectada</h3>
-          <p id="moduleSummary" class="muted">Esperando telemetría del dispositivo.</p>
-          <div class="chips" aria-label="Estado del sistema">
-            <span id="chipOnline" class="chip chip-pending">Online</span>
-            <span id="chipMode" class="chip chip-pending">Modo manual</span>
-            <span id="chipFirebase" class="chip chip-pending">Firebase activo</span>
-          </div>
+          <h3>Estado de conexión</h3>
+          <p id="connectionStatus" class="status-pill status-pending">Cargando...</p>
         </div>
         <p id="lastRefresh" class="muted">Última actualización web: --</p>
       </section>
 
-      <section id="errorBanner" class="error-banner" role="alert" aria-live="polite" hidden></section>
-
       <section class="metrics-grid">
-        <article class="metric-card card" data-animate-target>
+        <article class="metric-card card">
           <h3>Temperatura</h3>
           <p class="metric-value" id="temperatura">--</p>
           <p class="metric-unit">°C</p>
         </article>
 
-        <article class="metric-card card" data-animate-target>
+        <article class="metric-card card">
           <h3>Humedad ambiente</h3>
           <p class="metric-value" id="humedadAmbiente">--</p>
           <p class="metric-unit">%</p>
         </article>
 
-        <article class="metric-card card" data-animate-target>
+        <article class="metric-card card">
           <h3>Humedad suelo</h3>
           <p class="metric-value" id="humedadSuelo">--</p>
           <p class="metric-unit">%</p>
         </article>
 
-        <article class="metric-card card" data-animate-target>
+        <article class="metric-card card">
           <h3>CO2</h3>
           <p class="metric-value" id="co2">--</p>
           <p class="metric-unit">ppm</p>
         </article>
 
-        <article class="metric-card card" data-animate-target>
+        <article class="metric-card card">
           <h3>Distancia / nivel</h3>
           <p class="metric-value" id="distanciaCm">Sin lectura</p>
           <p class="metric-unit">cm</p>
         </article>
 
-        <article class="metric-card card" data-animate-target>
+        <article class="metric-card card">
           <h3>Tiempo encendido</h3>
           <p class="metric-value" id="uptime">--</p>
           <p class="metric-unit">hh:mm:ss</p>
@@ -74,39 +66,23 @@
       <section class="card actuators">
         <h3>Control de actuadores</h3>
         <div class="actuator-grid">
-          <article class="actuator-item" data-relay-card="relay1">
-            <div class="relay-header">
-              <h4>Actuador 1</h4>
-              <span id="relay1Badge" class="relay-badge relay-unknown">--</span>
-            </div>
+          <article class="actuator-item">
+            <h4>Actuador 1</h4>
             <p id="relay1State" class="muted">Estado: --</p>
             <div class="button-group">
-              <button data-relay="relay1" data-value="true" class="btn btn-on">Encender</button>
-              <button data-relay="relay1" data-value="false" class="btn btn-off">Apagar</button>
+              <button data-relay="relay1" data-value="true" class="btn btn-on">ON</button>
+              <button data-relay="relay1" data-value="false" class="btn btn-off">OFF</button>
             </div>
           </article>
 
-          <article class="actuator-item" data-relay-card="relay2">
-            <div class="relay-header">
-              <h4>Actuador 2</h4>
-              <span id="relay2Badge" class="relay-badge relay-unknown">--</span>
-            </div>
+          <article class="actuator-item">
+            <h4>Actuador 2</h4>
             <p id="relay2State" class="muted">Estado: --</p>
             <div class="button-group">
-              <button data-relay="relay2" data-value="true" class="btn btn-on">Encender</button>
-              <button data-relay="relay2" data-value="false" class="btn btn-off">Apagar</button>
+              <button data-relay="relay2" data-value="true" class="btn btn-on">ON</button>
+              <button data-relay="relay2" data-value="false" class="btn btn-off">OFF</button>
             </div>
           </article>
-        </div>
-      </section>
-
-      <section class="card diagnostics" data-animate-target>
-        <h3>Diagnóstico técnico</h3>
-        <div class="diagnostic-grid">
-          <p><strong>soilRaw:</strong> <span id="soilRaw">--</span></p>
-          <p><strong>uptimeMs:</strong> <span id="uptimeMs">--</span></p>
-          <p><strong>timestamp:</strong> <span id="timestamp">--</span></p>
-          <p><strong>deviceId:</strong> <span id="deviceId">--</span></p>
         </div>
       </section>
     </main>
