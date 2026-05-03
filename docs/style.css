@@ -1,0 +1,165 @@
+:root {
+  --green: #26734d;
+  --green-dark: #174c35;
+  --green-soft: #e7f5ed;
+  --bg: #f4faf6;
+  --text: #1c2a22;
+  --muted: #64756b;
+  --white: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.site-header,
+.site-footer {
+  text-align: center;
+  color: var(--white);
+  background: linear-gradient(135deg, var(--green-dark), var(--green));
+}
+
+.site-header {
+  padding: 2rem 1rem;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+}
+
+.site-header h2 {
+  margin: 0.25rem 0 0.75rem;
+  font-weight: 500;
+}
+
+.site-header p {
+  margin: 0;
+  opacity: 0.95;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 1.2rem auto;
+  padding: 0 1rem 1.5rem;
+}
+
+.card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 8px 22px rgba(23, 76, 53, 0.1);
+  border: 1px solid #dbe9e2;
+}
+
+.status-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.status-pill {
+  display: inline-block;
+  margin: 0.35rem 0 0;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.status-ok { background: #ddf7e8; color: #14653b; }
+.status-empty { background: #fff3cd; color: #7a5b00; }
+.status-error { background: #ffe0e0; color: #8a1a1a; }
+.status-pending { background: var(--green-soft); color: var(--green-dark); }
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.metric-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.metric-value {
+  margin: 0.6rem 0 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--green-dark);
+}
+
+.metric-unit {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+}
+
+.actuators {
+  margin-top: 1rem;
+}
+
+.actuator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.actuator-item {
+  background: var(--green-soft);
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.btn {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-on {
+  background: #2ca76b;
+  color: var(--white);
+}
+
+.btn-off {
+  background: #d3d9d6;
+  color: #213128;
+}
+
+.btn:hover {
+  filter: brightness(0.97);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.site-footer {
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+  .status-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
