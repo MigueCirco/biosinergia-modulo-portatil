@@ -11,60 +11,41 @@
   </head>
   <body>
     <header class="site-header">
-      <h1>BioSinergia</h1>
-      <h2>Módulo Portátil IoT</h2>
-      <p>Monitoreo ambiental y control remoto para cultivos inteligentes.</p>
+      <div class="brand-wrap">
+        <div class="brand-logo" aria-hidden="true">🌱</div>
+        <div>
+          <h1>BioSinergia</h1>
+          <h2>Módulo Portátil IoT</h2>
+          <p>Monitoreo ambiental y control remoto para cultivos inteligentes.</p>
+        </div>
+      </div>
     </header>
 
     <main class="container">
-      <section class="status-card card">
+      <section class="status-card card section-block">
         <div>
-          <h3>Estado de conexión</h3>
+          <h3>Resumen del módulo</h3>
           <p id="connectionStatus" class="status-pill status-pending">Cargando...</p>
+          <p id="lastReading" class="muted">Última lectura recibida: --</p>
+          <p id="readingAge" class="muted">Hace -- segundos</p>
         </div>
         <p id="lastRefresh" class="muted">Última actualización web: --</p>
       </section>
 
-      <section class="metrics-grid">
-        <article class="metric-card card">
-          <h3>Temperatura</h3>
-          <p class="metric-value" id="temperatura">--</p>
-          <p class="metric-unit">°C</p>
-        </article>
-
-        <article class="metric-card card">
-          <h3>Humedad ambiente</h3>
-          <p class="metric-value" id="humedadAmbiente">--</p>
-          <p class="metric-unit">%</p>
-        </article>
-
-        <article class="metric-card card">
-          <h3>Humedad suelo</h3>
-          <p class="metric-value" id="humedadSuelo">--</p>
-          <p class="metric-unit">%</p>
-        </article>
-
-        <article class="metric-card card">
-          <h3>CO2</h3>
-          <p class="metric-value" id="co2">--</p>
-          <p class="metric-unit">ppm</p>
-        </article>
-
-        <article class="metric-card card">
-          <h3>Distancia / nivel</h3>
-          <p class="metric-value" id="distanciaCm">Sin lectura</p>
-          <p class="metric-unit">cm</p>
-        </article>
-
-        <article class="metric-card card">
-          <h3>Tiempo encendido</h3>
-          <p class="metric-value" id="uptime">--</p>
-          <p class="metric-unit">hh:mm:ss</p>
-        </article>
+      <section class="section-block">
+        <h3 class="section-title">Sensores</h3>
+        <div class="metrics-grid">
+          <article class="metric-card card"><h3>Temperatura</h3><p class="metric-value" id="temperatura">--</p><p class="metric-unit">°C</p></article>
+          <article class="metric-card card"><h3>Humedad ambiente</h3><p class="metric-value" id="humedadAmbiente">--</p><p class="metric-unit">%</p></article>
+          <article class="metric-card card"><h3>Humedad suelo</h3><p class="metric-value" id="humedadSuelo">--</p><p class="metric-unit">%</p></article>
+          <article class="metric-card card"><h3>CO2</h3><p class="metric-value" id="co2">--</p><p class="metric-unit">ppm</p></article>
+          <article class="metric-card card"><h3>Distancia / nivel</h3><p class="metric-value" id="distanciaCm">Sin lectura</p><p class="metric-unit">cm</p></article>
+          <article class="metric-card card"><h3>Tiempo encendido</h3><p class="metric-value" id="uptime">--</p><p class="metric-unit">hh:mm:ss</p></article>
+        </div>
       </section>
 
-      <section class="card actuators">
-        <h3>Control de actuadores</h3>
+      <section class="card actuators section-block">
+        <h3 class="section-title">Actuadores</h3>
         <div class="actuator-grid">
           <article class="actuator-item">
             <h4>Actuador 1</h4>
@@ -74,7 +55,6 @@
               <button data-relay="relay1" data-value="false" class="btn btn-off">OFF</button>
             </div>
           </article>
-
           <article class="actuator-item">
             <h4>Actuador 2</h4>
             <p id="relay2State" class="muted">Estado: --</p>
@@ -83,6 +63,16 @@
               <button data-relay="relay2" data-value="false" class="btn btn-off">OFF</button>
             </div>
           </article>
+        </div>
+      </section>
+
+      <section class="card section-block">
+        <h3 class="section-title">Diagnóstico técnico</h3>
+        <div class="diag-grid">
+          <p><strong>deviceId:</strong> <span id="diagDeviceId">--</span></p>
+          <p><strong>Última URL consultada:</strong> <span id="diagLastUrl">--</span></p>
+          <p><strong>Último estado GET:</strong> <span id="diagGetStatus">--</span></p>
+          <p><strong>Último estado PATCH:</strong> <span id="diagPatchStatus">--</span></p>
         </div>
       </section>
     </main>
