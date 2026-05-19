@@ -10,7 +10,10 @@ const FIREBASE_AUTH = "";
 
 const latestPath = `/devices/${DEVICE_ID}/latest.json`;
 const commandsPath = `/devices/${DEVICE_ID}/commands.json`;
+const historyPath = `/devices/${DEVICE_ID}/history.json?orderBy=%22$key%22&limitToLast=10`;
+const eventsPath = `/devices/${DEVICE_ID}/events.json?orderBy=%22$key%22&limitToLast=10`;
 const refreshMs = 5000;
+const historyRefreshMs = 15000;
 
 const els = {
   connectionStatus: document.getElementById("connectionStatus"),
@@ -25,6 +28,10 @@ const els = {
   uptime: document.getElementById("uptime"),
   relay1State: document.getElementById("relay1State"),
   relay2State: document.getElementById("relay2State"),
+  historyStatus: document.getElementById("historyStatus"),
+  historyList: document.getElementById("historyList"),
+  eventsStatus: document.getElementById("eventsStatus"),
+  eventsList: document.getElementById("eventsList"),
   diagDeviceId: document.getElementById("diagDeviceId"),
   diagLastUrl: document.getElementById("diagLastUrl"),
   diagGetStatus: document.getElementById("diagGetStatus"),
@@ -60,6 +67,19 @@ function formatUptime(ms) {
   const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
   const s = String(total % 60).padStart(2, "0");
   return `${h}:${m}:${s}`;
+}
+
+function formatDate(value) {
+  if (!value) return "--";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString();
+}
+
+function boolBadge(value) {
+  if (value === true) return '<span class="badge badge-on">ON</span>';
+  if (value === false) return '<span class="badge badge-off">OFF</span>';
+  return "--";
 }
 
 function setStatus(text, cssClass) {
@@ -173,6 +193,101 @@ async function fetchLatest() {
   }
 }
 
+function normalizeFirebaseList(data) {
+  if (!data || typeof data !== "object") return [];
+  return Object.entries(data)
+    .map(([key, value]) => ({ key, ...(value || {}) }))
+    .sort((a, b) => String(b.key).localeCompare(String(a.key)));
+}
+
+function renderHistory(list) {
+  els.historyStatus.classList.remove("section-error");
+  if (!list.length) {
+    els.historyStatus.textContent = "Sin registros todavía";
+    els.historyList.innerHTML = "";
+    return;
+  }
+  els.historyStatus.textContent = `Mostrando ${list.length} mediciones recientes`;
+  els.historyList.innerHTML = list.map((item) => `
+    <article class="record-item">
+      <div class="record-top">
+        <span class="record-title">Registro ${item.key}</span>
+        <span class="record-time">${formatDate(item.timestamp || item.ts)}</span>
+      </div>
+      <div class="record-grid">
+        <p><strong>Temp:</strong> ${formatValue(item.temperatura)} °C</p>
+        <p><strong>Hum. amb:</strong> ${formatValue(item.humedadAmbiente)} %</p>
+        <p><strong>CO2:</strong> ${formatValue(item.co2)} ppm</p>
+        <p><strong>Relay 1:</strong> ${boolBadge(item.relay1)}</p>
+        <p><strong>Relay 2:</strong> ${boolBadge(item.relay2)}</p>
+        <p><strong>Modo:</strong> ${item.modo ?? "--"}</p>
+      </div>
+    </article>
+  `).join("");
+}
+
+function getEventTone(event) {
+  const text = `${event.tipoEvento || ""} ${event.motivo || ""}`.toLowerCase();
+  return /(alert|alarma|crit|warn|error)/.test(text) ? " event-alert" : "";
+}
+
+function renderEvents(list) {
+  els.eventsStatus.classList.remove("section-error");
+  if (!list.length) {
+    els.eventsStatus.textContent = "Sin registros todavía";
+    els.eventsList.innerHTML = "";
+    return;
+  }
+  els.eventsStatus.textContent = `Mostrando ${list.length} eventos recientes`;
+  els.eventsList.innerHTML = list.map((event) => `
+    <article class="record-item${getEventTone(event)}">
+      <div class="record-top">
+        <span class="record-title">${event.tipoEvento || "Evento"}</span>
+        <span class="record-time">${formatDate(event.timestamp || event.ts)}${!event.timestamp && !event.ts && event.uptimeMs ? ` · uptime ${formatUptime(event.uptimeMs)}` : ""}</span>
+      </div>
+      <div class="record-grid">
+        <p><strong>Actuador:</strong> ${event.actuador || "--"}</p>
+        <p><strong>Estado:</strong> ${event.estadoAnterior ?? "--"} → ${event.nuevoEstado ?? "--"}</p>
+        <p><strong>Motivo:</strong> ${event.motivo ?? "--"}</p>
+        <p><strong>Duración:</strong> ${event.durationSec !== undefined ? `${event.durationSec} s` : "--"}</p>
+        <p><strong>Temp snapshot:</strong> ${formatValue(event.temperatura ?? event.snapshotTemperatura)} °C</p>
+        <p><strong>Hum snapshot:</strong> ${formatValue(event.humedadAmbiente ?? event.snapshotHumedadAmbiente)} %</p>
+        <p><strong>CO2 snapshot:</strong> ${formatValue(event.co2 ?? event.snapshotCo2)} ppm</p>
+      </div>
+    </article>
+  `).join("");
+}
+
+async function fetchHistory() {
+  try {
+    const response = await fetch(buildUrl(historyPath));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const history = await response.json();
+    console.log("History recibida:", history);
+    renderHistory(normalizeFirebaseList(history));
+  } catch (error) {
+    console.error("Error history:", error);
+    els.historyStatus.textContent = "Error cargando historial";
+    els.historyStatus.classList.add("section-error");
+    els.historyList.innerHTML = "";
+  }
+}
+
+async function fetchEvents() {
+  try {
+    const response = await fetch(buildUrl(eventsPath));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const events = await response.json();
+    console.log("Events recibidos:", events);
+    renderEvents(normalizeFirebaseList(events));
+  } catch (error) {
+    console.error("Error events:", error);
+    els.eventsStatus.textContent = "Error cargando eventos";
+    els.eventsStatus.classList.add("section-error");
+    els.eventsList.innerHTML = "";
+  }
+}
+
 async function sendRelayCommand(relayName, relayValue) {
   const payload = { modo: "manual", [relayName]: relayValue };
   const url = buildUrl(commandsPath);
@@ -206,5 +321,9 @@ document.querySelectorAll("button[data-relay]").forEach((button) => {
 
 updateDiagnostics();
 fetchLatest();
+fetchHistory();
+fetchEvents();
 setInterval(fetchLatest, refreshMs);
+setInterval(fetchHistory, historyRefreshMs);
+setInterval(fetchEvents, historyRefreshMs);
 setInterval(updateReadingAge, 1000);
