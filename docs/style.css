@@ -69,3 +69,14 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 @media (max-width: 460px) {
   .metrics-grid, .actuator-grid, .record-grid { grid-template-columns: 1fr; }
 }
+
+.download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .65rem; }
+.btn-secondary { background: #e2efe8; color: #1f4f38; opacity: 1; border: 1px solid #c9dfd4; }
+.calibration-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .7rem; margin: .8rem 0; }
+.calibration-item { background: #f6fbf8; border: 1px solid #dbe9e2; border-radius: 12px; padding: .7rem; }
+.calibration-item h4 { margin: 0 0 .35rem; color: var(--green-dark); }
+.calibration-item p { margin: .2rem 0; }
+.reference-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .7rem; margin-bottom: .8rem; }
+.reference-grid label { display: flex; flex-direction: column; gap: .3rem; font-size: .92rem; color: var(--muted); }
+.reference-grid input { border: 1px solid #c9dfd4; border-radius: 9px; padding: .55rem .65rem; font-size: .95rem; }
+.offset-preview { background: var(--green-soft); border: 1px dashed #c2ddcf; color: var(--green-dark); border-radius: 10px; padding: .6rem; margin-bottom: .8rem; font-weight: 600; }

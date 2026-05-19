@@ -78,6 +78,57 @@
         <div id="eventsList" class="records-list"></div>
       </section>
 
+
+      <section class="card section-block">
+        <h3 class="section-title">Descargas de datos</h3>
+        <p id="downloadStatus" class="muted">Exporta historial y eventos en CSV o JSON.</p>
+        <div class="download-grid">
+          <button id="downloadHistoryCsv" class="btn btn-secondary">Descargar historial CSV</button>
+          <button id="downloadEventsCsv" class="btn btn-secondary">Descargar eventos CSV</button>
+          <button id="downloadHistoryJson" class="btn btn-secondary">Descargar historial JSON</button>
+          <button id="downloadEventsJson" class="btn btn-secondary">Descargar eventos JSON</button>
+        </div>
+      </section>
+
+      <section class="card section-block">
+        <h3 class="section-title">Calibración de sensores</h3>
+        <p id="calibrationStatus" class="muted">Cargando calibración...</p>
+        <div class="calibration-grid">
+          <article class="calibration-item">
+            <h4>Temperatura</h4>
+            <p>Raw: <span id="temperaturaRaw">--</span></p>
+            <p>Calibrado: <span id="temperaturaCal">--</span></p>
+          </article>
+          <article class="calibration-item">
+            <h4>Humedad ambiente</h4>
+            <p>Raw: <span id="humedadRaw">--</span></p>
+            <p>Calibrado: <span id="humedadCal">--</span></p>
+          </article>
+          <article class="calibration-item">
+            <h4>CO2</h4>
+            <p>Raw: <span id="co2Raw">--</span></p>
+            <p>Calibrado: <span id="co2Cal">--</span></p>
+          </article>
+        </div>
+        <div class="reference-grid">
+          <label>Temperatura referencia
+            <input id="temperatureRef" type="number" step="0.01" placeholder="Ej: 25.4" />
+          </label>
+          <label>Humedad referencia
+            <input id="humidityRef" type="number" step="0.01" placeholder="Ej: 61.2" />
+          </label>
+          <label>CO2 referencia
+            <input id="co2Ref" type="number" step="0.01" placeholder="Ej: 480" />
+          </label>
+        </div>
+        <div class="offset-preview" id="offsetPreview">Offsets calculados: --</div>
+        <div class="download-grid">
+          <button id="calculateCalibration" class="btn btn-secondary">Calcular calibración</button>
+          <button id="saveCalibration" class="btn btn-on">Guardar calibración</button>
+          <button id="disableCalibration" class="btn btn-off">Desactivar calibración</button>
+        </div>
+      </section>
+
       <section class="card section-block">
         <h3 class="section-title">Diagnóstico técnico</h3>
         <div class="diag-grid">
