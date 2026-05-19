@@ -12,6 +12,9 @@ const latestPath = `/devices/${DEVICE_ID}/latest.json`;
 const commandsPath = `/devices/${DEVICE_ID}/commands.json`;
 const historyPath = `/devices/${DEVICE_ID}/history.json?orderBy=%22$key%22&limitToLast=10`;
 const eventsPath = `/devices/${DEVICE_ID}/events.json?orderBy=%22$key%22&limitToLast=10`;
+const calibrationPath = `/devices/${DEVICE_ID}/calibration.json`;
+const historyDownloadPath = `/devices/${DEVICE_ID}/history.json`;
+const eventsDownloadPath = `/devices/${DEVICE_ID}/events.json`;
 const refreshMs = 5000;
 const historyRefreshMs = 15000;
 
@@ -35,7 +38,26 @@ const els = {
   diagDeviceId: document.getElementById("diagDeviceId"),
   diagLastUrl: document.getElementById("diagLastUrl"),
   diagGetStatus: document.getElementById("diagGetStatus"),
-  diagPatchStatus: document.getElementById("diagPatchStatus")
+  diagPatchStatus: document.getElementById("diagPatchStatus"),
+  downloadStatus: document.getElementById("downloadStatus"),
+  downloadHistoryCsv: document.getElementById("downloadHistoryCsv"),
+  downloadEventsCsv: document.getElementById("downloadEventsCsv"),
+  downloadHistoryJson: document.getElementById("downloadHistoryJson"),
+  downloadEventsJson: document.getElementById("downloadEventsJson"),
+  calibrationStatus: document.getElementById("calibrationStatus"),
+  temperaturaRaw: document.getElementById("temperaturaRaw"),
+  humedadRaw: document.getElementById("humedadRaw"),
+  co2Raw: document.getElementById("co2Raw"),
+  temperaturaCal: document.getElementById("temperaturaCal"),
+  humedadCal: document.getElementById("humedadCal"),
+  co2Cal: document.getElementById("co2Cal"),
+  temperatureRef: document.getElementById("temperatureRef"),
+  humidityRef: document.getElementById("humidityRef"),
+  co2Ref: document.getElementById("co2Ref"),
+  calculateCalibration: document.getElementById("calculateCalibration"),
+  saveCalibration: document.getElementById("saveCalibration"),
+  disableCalibration: document.getElementById("disableCalibration"),
+  offsetPreview: document.getElementById("offsetPreview")
 };
 
 const diag = {
@@ -43,6 +65,12 @@ const diag = {
   lastUrl: "--",
   lastGetStatus: "--",
   lastPatchStatus: "--"
+};
+
+const state = {
+  latest: null,
+  calibration: null,
+  pendingOffsets: null
 };
 
 function buildUrl(path) {
@@ -53,6 +81,69 @@ function buildUrl(path) {
 function formatValue(value) {
   if (value === null || value === undefined || Number.isNaN(value)) return "--";
   return `${value}`;
+}
+
+
+function toNumberOrNull(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function updateCalibrationView() {
+  const latest = state.latest || {};
+  const calibration = state.calibration || {};
+  const hasCalibration = calibration && typeof calibration === "object";
+
+  const temperatureRaw = latest.temperaturaRaw ?? latest.temperatura;
+  const humidityRaw = latest.humedadAmbienteRaw ?? latest.humedadAmbiente;
+  const co2Raw = latest.co2Raw ?? latest.co2;
+
+  els.temperaturaRaw.textContent = formatValue(temperatureRaw);
+  els.humedadRaw.textContent = formatValue(humidityRaw);
+  els.co2Raw.textContent = formatValue(co2Raw);
+  els.temperaturaCal.textContent = formatValue(latest.temperatura);
+  els.humedadCal.textContent = formatValue(latest.humedadAmbiente);
+  els.co2Cal.textContent = formatValue(latest.co2);
+
+  if (!hasCalibration) {
+    els.calibrationStatus.textContent = "Calibración no configurada";
+  } else {
+    const enabledText = calibration.enabled === false ? "desactivada" : "activa";
+    els.calibrationStatus.textContent = `Calibración ${enabledText} · método: ${calibration.method ?? "--"}`;
+  }
+}
+
+function jsonToCsv(list) {
+  if (!list.length) return "";
+  const keys = Array.from(list.reduce((acc, item) => {
+    Object.keys(item || {}).forEach((k) => acc.add(k));
+    return acc;
+  }, new Set()));
+  const escape = (value) => {
+    const s = value === null || value === undefined ? "" : String(value);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = [keys.join(",")];
+  list.forEach((item) => rows.push(keys.map((k) => escape(item[k])).join(",")));
+  return rows.join("\n");
+}
+
+function downloadContent(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function fetchCollection(path) {
+  const response = await fetch(buildUrl(path));
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return await response.json();
 }
 
 function formatDistance(value) {
@@ -198,7 +289,9 @@ async function fetchLatest() {
 
     const latest = await response.json();
     console.log("Latest recibida:", latest);
+    state.latest = latest;
     renderData(latest);
+    updateCalibrationView();
     updateRefreshTime();
     updateDiagnostics();
   } catch (error) {
@@ -291,6 +384,17 @@ function renderEvents(list) {
   }).join("");
 }
 
+async function fetchCalibration() {
+  try {
+    const calibration = await fetchCollection(calibrationPath);
+    state.calibration = calibration;
+    updateCalibrationView();
+  } catch (error) {
+    console.error("Error calibration:", error);
+    els.calibrationStatus.textContent = "Error cargando calibración";
+  }
+}
+
 async function fetchHistory() {
   try {
     const response = await fetch(buildUrl(historyPath));
@@ -344,6 +448,117 @@ async function sendRelayCommand(relayName, relayValue) {
   }
 }
 
+
+
+async function handleDownload(path, format, baseName) {
+  try {
+    const data = await fetchCollection(path);
+    const normalized = normalizeFirebaseList(data);
+    if (!normalized.length) {
+      els.downloadStatus.textContent = "Sin registros todavía";
+      return;
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    if (format === "csv") {
+      const csv = jsonToCsv(normalized);
+      downloadContent(`${baseName}-${stamp}.csv`, csv, "text/csv;charset=utf-8;");
+    } else {
+      downloadContent(`${baseName}-${stamp}.json`, JSON.stringify(normalized, null, 2), "application/json;charset=utf-8;");
+    }
+    els.downloadStatus.textContent = `Descarga generada: ${baseName.toUpperCase()} ${format.toUpperCase()}`;
+  } catch (error) {
+    console.error("Error de descarga:", error);
+    els.downloadStatus.textContent = "Error al generar descarga";
+  }
+}
+
+function calculateCalibration() {
+  const latest = state.latest || {};
+  const temperatureRaw = toNumberOrNull(latest.temperaturaRaw ?? latest.temperatura);
+  const humidityRaw = toNumberOrNull(latest.humedadAmbienteRaw ?? latest.humedadAmbiente);
+  const co2Raw = toNumberOrNull(latest.co2Raw ?? latest.co2);
+  const temperatureRef = toNumberOrNull(els.temperatureRef.value);
+  const humidityRef = toNumberOrNull(els.humidityRef.value);
+  const co2Ref = toNumberOrNull(els.co2Ref.value);
+
+  if ([temperatureRaw, humidityRaw, co2Raw, temperatureRef, humidityRef, co2Ref].some((v) => v === null)) {
+    els.offsetPreview.textContent = "Offsets calculados: datos insuficientes";
+    return;
+  }
+
+  state.pendingOffsets = {
+    temperatureOffset: Number((temperatureRef - temperatureRaw).toFixed(3)),
+    humidityOffset: Number((humidityRef - humidityRaw).toFixed(3)),
+    co2Offset: Number((co2Ref - co2Raw).toFixed(3)),
+    temperatureRef,
+    humidityRef,
+    co2Ref,
+    temperatureRaw,
+    humidityRaw,
+    co2Raw
+  };
+
+  const p = state.pendingOffsets;
+  els.offsetPreview.textContent = `Offsets calculados: Temp ${p.temperatureOffset}, Hum ${p.humidityOffset}, CO2 ${p.co2Offset}`;
+}
+
+async function saveCalibration() {
+  if (!state.pendingOffsets) {
+    els.calibrationStatus.textContent = "Primero calcula la calibración";
+    return;
+  }
+  const p = state.pendingOffsets;
+  const payload = {
+    enabled: true,
+    temperatureOffset: p.temperatureOffset,
+    humidityOffset: p.humidityOffset,
+    co2Offset: p.co2Offset,
+    method: "software_offset",
+    lastReference: {
+      temperatureRef: p.temperatureRef,
+      humidityRef: p.humidityRef,
+      co2Ref: p.co2Ref,
+      temperatureRaw: p.temperatureRaw,
+      humidityRaw: p.humidityRaw,
+      co2Raw: p.co2Raw,
+      createdAt: Date.now()
+    }
+  };
+  try {
+    const response = await fetch(buildUrl(calibrationPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    diag.lastPatchStatus = `HTTP ${response.status}`;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    els.calibrationStatus.textContent = "Calibración guardada";
+    updateDiagnostics();
+    await fetchCalibration();
+  } catch (error) {
+    console.error("Error guardando calibración:", error);
+    els.calibrationStatus.textContent = "Error guardando calibración";
+  }
+}
+
+async function disableCalibration() {
+  try {
+    const response = await fetch(buildUrl(calibrationPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: false }) });
+    diag.lastPatchStatus = `HTTP ${response.status}`;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    els.calibrationStatus.textContent = "Calibración desactivada";
+    updateDiagnostics();
+    await fetchCalibration();
+  } catch (error) {
+    console.error("Error desactivando calibración:", error);
+    els.calibrationStatus.textContent = "Error al desactivar calibración";
+  }
+}
+
+els.downloadHistoryCsv.addEventListener("click", () => handleDownload(historyDownloadPath, "csv", "history"));
+els.downloadEventsCsv.addEventListener("click", () => handleDownload(eventsDownloadPath, "csv", "events"));
+els.downloadHistoryJson.addEventListener("click", () => handleDownload(historyDownloadPath, "json", "history"));
+els.downloadEventsJson.addEventListener("click", () => handleDownload(eventsDownloadPath, "json", "events"));
+els.calculateCalibration.addEventListener("click", calculateCalibration);
+els.saveCalibration.addEventListener("click", saveCalibration);
+els.disableCalibration.addEventListener("click", disableCalibration);
+
 document.querySelectorAll("button[data-relay]").forEach((button) => {
   button.addEventListener("click", () => {
     const relay = button.dataset.relay;
@@ -356,7 +571,9 @@ updateDiagnostics();
 fetchLatest();
 fetchHistory();
 fetchEvents();
+fetchCalibration();
 setInterval(fetchLatest, refreshMs);
 setInterval(fetchHistory, historyRefreshMs);
 setInterval(fetchEvents, historyRefreshMs);
+setInterval(fetchCalibration, historyRefreshMs);
 setInterval(updateReadingAge, 1000);
