@@ -47,12 +47,25 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 .diag-grid p { margin: .3rem 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .9rem; }
 .muted { color: var(--muted); margin: .35rem 0 0; }
 .site-footer { text-align: center; padding: 1rem; margin-top: 1rem; }
+.records-list { margin-top: .8rem; display: grid; gap: .7rem; }
+.record-item { border: 1px solid #dbe9e2; border-radius: 12px; padding: .75rem; background: #fbfefc; }
+.record-top { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; margin-bottom: .4rem; }
+.record-title { font-weight: 700; color: var(--green-dark); }
+.record-time { color: var(--muted); font-size: .9rem; }
+.record-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .35rem .7rem; }
+.record-grid p { margin: 0; font-size: .93rem; }
+.badge { display: inline-block; border-radius: 999px; padding: .12rem .55rem; font-size: .8rem; font-weight: 700; }
+.badge-on { background: #ddf7e8; color: #14653b; }
+.badge-off { background: #e5e9e7; color: #3a4a41; }
+.event-alert { border-left: 4px solid #ea7a2f; }
+.section-error { color: var(--red-dark); }
 @media (max-width: 640px) {
   .brand-wrap { align-items: flex-start; }
   .brand-logo { width: 48px; height: 48px; font-size: 1.5rem; }
   .status-card { flex-direction: column; }
   .metrics-grid { grid-template-columns: 1fr 1fr; }
+  .record-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 460px) {
-  .metrics-grid, .actuator-grid { grid-template-columns: 1fr; }
+  .metrics-grid, .actuator-grid, .record-grid { grid-template-columns: 1fr; }
 }
