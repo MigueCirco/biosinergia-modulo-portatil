@@ -80,3 +80,12 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 .reference-grid label { display: flex; flex-direction: column; gap: .3rem; font-size: .92rem; color: var(--muted); }
 .reference-grid input { border: 1px solid #c9dfd4; border-radius: 9px; padding: .55rem .65rem; font-size: .95rem; }
 .offset-preview { background: var(--green-soft); border: 1px dashed #c2ddcf; color: var(--green-dark); border-radius: 10px; padding: .6rem; margin-bottom: .8rem; font-weight: 600; }
+.mode-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:.7rem; margin:.7rem 0; }
+.mode-grid label { display:flex; flex-direction:column; gap:.3rem; color:var(--muted); font-size:.92rem; }
+.mode-grid input, .mode-grid select, .reference-grid select { border:1px solid #c9dfd4; border-radius:9px; padding:.55rem .65rem; font-size:.95rem; background:#fff; }
+.mode-help { margin-bottom:.7rem; }
+.setpoint-group { margin: .7rem 0; padding:.65rem; border:1px solid #dbe9e2; border-radius:10px; background:#fbfefc; }
+.setpoint-group h4 { margin:.1rem 0 .5rem; color:var(--green-dark); }
+.logic-list { margin:.3rem 0 0 1rem; color:var(--text); }
+.logic-list li { margin:.25rem 0; }
+.btn:disabled, .btn-disabled { cursor:not-allowed; opacity:.45; }

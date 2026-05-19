@@ -13,6 +13,7 @@ const commandsPath = `/devices/${DEVICE_ID}/commands.json`;
 const historyPath = `/devices/${DEVICE_ID}/history.json?orderBy=%22$key%22&limitToLast=10`;
 const eventsPath = `/devices/${DEVICE_ID}/events.json?orderBy=%22$key%22&limitToLast=10`;
 const calibrationPath = `/devices/${DEVICE_ID}/calibration.json`;
+const configPath = `/devices/${DEVICE_ID}/config.json`;
 const historyDownloadPath = `/devices/${DEVICE_ID}/history.json`;
 const eventsDownloadPath = `/devices/${DEVICE_ID}/events.json`;
 const refreshMs = 5000;
@@ -57,7 +58,28 @@ const els = {
   calculateCalibration: document.getElementById("calculateCalibration"),
   saveCalibration: document.getElementById("saveCalibration"),
   disableCalibration: document.getElementById("disableCalibration"),
-  offsetPreview: document.getElementById("offsetPreview")
+  offsetPreview: document.getElementById("offsetPreview"),
+  modeStatus: document.getElementById("modeStatus"),
+  currentMode: document.getElementById("currentMode"),
+  modeSelect: document.getElementById("modeSelect"),
+  applyMode: document.getElementById("applyMode"),
+  manualControlHint: document.getElementById("manualControlHint"),
+  setpointsStatus: document.getElementById("setpointsStatus"),
+  saveSetpoints: document.getElementById("saveSetpoints"),
+  co2Min: document.getElementById("co2Min"),
+  co2Max: document.getElementById("co2Max"),
+  humMin: document.getElementById("humMin"),
+  humMax: document.getElementById("humMax"),
+  tempMin: document.getElementById("tempMin"),
+  tempMax: document.getElementById("tempMax"),
+  tempCritical: document.getElementById("tempCritical"),
+  minHumidifierOnSec: document.getElementById("minHumidifierOnSec"),
+  minHumidifierOffSec: document.getElementById("minHumidifierOffSec"),
+  minVentilationOnSec: document.getElementById("minVentilationOnSec"),
+  minVentilationOffSec: document.getElementById("minVentilationOffSec"),
+  delayAfterVentilationSec: document.getElementById("delayAfterVentilationSec"),
+  mutualExclusion: document.getElementById("mutualExclusion"),
+  crop: document.getElementById("crop")
 };
 
 const diag = {
@@ -70,7 +92,8 @@ const diag = {
 const state = {
   latest: null,
   calibration: null,
-  pendingOffsets: null
+  pendingOffsets: null,
+  config: null
 };
 
 function buildUrl(path) {
@@ -531,6 +554,7 @@ async function saveCalibration() {
     els.calibrationStatus.textContent = "Calibración guardada";
     updateDiagnostics();
     await fetchCalibration();
+fetchConfig();
   } catch (error) {
     console.error("Error guardando calibración:", error);
     els.calibrationStatus.textContent = "Error guardando calibración";
@@ -545,9 +569,96 @@ async function disableCalibration() {
     els.calibrationStatus.textContent = "Calibración desactivada";
     updateDiagnostics();
     await fetchCalibration();
+fetchConfig();
   } catch (error) {
     console.error("Error desactivando calibración:", error);
     els.calibrationStatus.textContent = "Error al desactivar calibración";
+  }
+}
+
+
+const setpointFields = ["co2Min","co2Max","humMin","humMax","tempMin","tempMax","tempCritical","minHumidifierOnSec","minHumidifierOffSec","minVentilationOnSec","minVentilationOffSec","delayAfterVentilationSec","mutualExclusion","crop"];
+
+function setManualControlsEnabled(enabled) {
+  document.querySelectorAll("button[data-relay]").forEach((button) => {
+    button.disabled = !enabled;
+    button.classList.toggle("btn-disabled", !enabled);
+  });
+  els.manualControlHint.textContent = enabled ? "" : "Modo automático activo: los relés manuales están deshabilitados.";
+}
+
+function renderConfig(config) {
+  if (!config || typeof config !== "object") {
+    els.modeStatus.textContent = "Advertencia: no se pudo cargar config.json";
+    els.setpointsStatus.textContent = "Advertencia: no se pudo cargar config.json";
+    return;
+  }
+  const mode = config.mode === "auto" ? "auto" : "manual";
+  els.currentMode.value = mode;
+  els.modeSelect.value = mode;
+  els.modeStatus.textContent = `Modo actual: ${mode}`;
+  setManualControlsEnabled(mode === "manual");
+  setpointFields.forEach((f) => {
+    if (!els[f]) return;
+    if (f === "mutualExclusion") {
+      els[f].value = String(config[f] === true);
+    } else {
+      els[f].value = config[f] ?? "";
+    }
+  });
+  els.setpointsStatus.textContent = "SETs listos para edición";
+}
+
+async function fetchConfig() {
+  try {
+    const config = await fetchCollection(configPath);
+    state.config = config;
+    renderConfig(config);
+  } catch (error) {
+    console.error("Error config:", error);
+    els.modeStatus.textContent = "Advertencia: config no disponible";
+    els.setpointsStatus.textContent = "Advertencia: config no disponible";
+  }
+}
+
+async function applyMode() {
+  const mode = els.modeSelect.value === "auto" ? "auto" : "manual";
+  const now = Date.now();
+  try {
+    const configPayload = { mode, updatedAtWeb: now, updatedFrom: "dashboard_mode" };
+    const commandsPayload = { modo: mode };
+    const [r1, r2] = await Promise.all([
+      fetch(buildUrl(configPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(configPayload) }),
+      fetch(buildUrl(commandsPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(commandsPayload) })
+    ]);
+    diag.lastPatchStatus = `config HTTP ${r1.status} · commands HTTP ${r2.status}`;
+    if (!r1.ok || !r2.ok) throw new Error("Error actualizando modo");
+    els.modeStatus.textContent = "Modo aplicado correctamente";
+    updateDiagnostics();
+    await fetchConfig();
+  } catch (error) {
+    console.error("Error aplicando modo:", error);
+    els.modeStatus.textContent = "Error al aplicar modo";
+  }
+}
+
+async function saveSetpoints() {
+  const payload = { updatedAtWeb: Date.now(), updatedFrom: "dashboard_setpoints" };
+  setpointFields.forEach((f) => {
+    if (f === "crop") payload[f] = els[f].value.trim();
+    else if (f === "mutualExclusion") payload[f] = els[f].value === "true";
+    else payload[f] = toNumberOrNull(els[f].value);
+  });
+  try {
+    const response = await fetch(buildUrl(configPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    diag.lastPatchStatus = `HTTP ${response.status}`;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    els.setpointsStatus.textContent = "SETs guardados correctamente";
+    updateDiagnostics();
+    await fetchConfig();
+  } catch (error) {
+    console.error("Error guardando setpoints:", error);
+    els.setpointsStatus.textContent = "Error guardando SETs";
   }
 }
 
@@ -558,6 +669,8 @@ els.downloadEventsJson.addEventListener("click", () => handleDownload(eventsDown
 els.calculateCalibration.addEventListener("click", calculateCalibration);
 els.saveCalibration.addEventListener("click", saveCalibration);
 els.disableCalibration.addEventListener("click", disableCalibration);
+els.applyMode.addEventListener("click", applyMode);
+els.saveSetpoints.addEventListener("click", saveSetpoints);
 
 document.querySelectorAll("button[data-relay]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -572,8 +685,10 @@ fetchLatest();
 fetchHistory();
 fetchEvents();
 fetchCalibration();
+fetchConfig();
 setInterval(fetchLatest, refreshMs);
 setInterval(fetchHistory, historyRefreshMs);
 setInterval(fetchEvents, historyRefreshMs);
 setInterval(fetchCalibration, historyRefreshMs);
+setInterval(fetchConfig, historyRefreshMs);
 setInterval(updateReadingAge, 1000);
