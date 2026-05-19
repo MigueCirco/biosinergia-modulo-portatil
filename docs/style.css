@@ -92,3 +92,6 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 .btn:disabled, .btn-disabled { cursor:not-allowed; opacity:.45; }
 .summary-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:1rem; }
 .set-summary-list p { margin:.28rem 0; }
+
+.install-card { border-left: 4px solid #2ca76b; background: #f8fdf9; }
+.install-card p { margin: .35rem 0; }

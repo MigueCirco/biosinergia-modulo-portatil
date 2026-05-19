@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">BioSinergia IoT</title>
+  <desc id="desc">Ícono de brote para BioSinergia</desc>
+  <rect width="512" height="512" rx="96" fill="#166534"/>
+  <circle cx="256" cy="256" r="204" fill="none" stroke="#22c55e" stroke-width="14"/>
+  <rect x="240" y="170" width="32" height="180" rx="12" fill="#f4fbf7"/>
+  <ellipse cx="200" cy="230" rx="66" ry="54" fill="#d9f99d"/>
+  <ellipse cx="312" cy="204" rx="66" ry="54" fill="#bbf7d0"/>
+  <rect x="110" y="320" width="292" height="116" rx="22" fill="#f4fbf7"/>
+</svg>

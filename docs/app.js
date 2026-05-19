@@ -755,3 +755,16 @@ setInterval(fetchEvents, historyRefreshMs);
 setInterval(fetchCalibration, historyRefreshMs);
 setInterval(fetchConfig, historyRefreshMs);
 setInterval(updateReadingAge, 1000);
+
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .then((registration) => {
+        console.log("Service Worker registrado:", registration.scope);
+      })
+      .catch((error) => {
+        console.warn("No se pudo registrar Service Worker:", error);
+      });
+  });
+}

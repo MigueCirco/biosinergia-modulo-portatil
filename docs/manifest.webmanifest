@@ -1,0 +1,20 @@
+{
+  "name": "BioSinergia Módulo Portátil IoT",
+  "short_name": "BioSinergia IoT",
+  "description": "Monitoreo ambiental y control remoto para cultivos inteligentes",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4fbf7",
+  "theme_color": "#166534",
+  "lang": "es-AR",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
