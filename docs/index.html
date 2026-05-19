@@ -66,6 +66,86 @@
         </div>
       </section>
 
+
+
+      <section class="card section-block">
+        <h3 class="section-title">Modo de operación</h3>
+        <p id="modeStatus" class="muted">Cargando configuración...</p>
+        <div class="mode-grid">
+          <label>Modo actual en configuración
+            <input id="currentMode" type="text" readonly value="--" />
+          </label>
+          <label>Seleccionar modo
+            <select id="modeSelect">
+              <option value="manual">Manual</option>
+              <option value="auto">Automático</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted mode-help"><strong>Manual:</strong> los relés se controlan desde la web · <strong>Automático:</strong> el ESP32 toma decisiones según SETs.</p>
+        <div class="download-grid">
+          <button id="applyMode" class="btn btn-secondary">Aplicar modo</button>
+        </div>
+        <p id="manualControlHint" class="muted"></p>
+      </section>
+
+      <section class="card section-block">
+        <h3 class="section-title">Configuración automática / SETs</h3>
+        <p id="setpointsStatus" class="muted">Cargando SETs...</p>
+        <div class="setpoint-group">
+          <h4>CO2 / ventilación</h4>
+          <div class="reference-grid">
+            <label>co2Min <input id="co2Min" type="number" step="0.01" /></label>
+            <label>co2Max <input id="co2Max" type="number" step="0.01" /></label>
+            <label>minVentilationOnSec <input id="minVentilationOnSec" type="number" step="1" /></label>
+            <label>minVentilationOffSec <input id="minVentilationOffSec" type="number" step="1" /></label>
+            <label>delayAfterVentilationSec <input id="delayAfterVentilationSec" type="number" step="1" /></label>
+          </div>
+        </div>
+        <div class="setpoint-group">
+          <h4>Humedad / humidificador</h4>
+          <div class="reference-grid">
+            <label>humMin <input id="humMin" type="number" step="0.01" /></label>
+            <label>humMax <input id="humMax" type="number" step="0.01" /></label>
+            <label>minHumidifierOnSec <input id="minHumidifierOnSec" type="number" step="1" /></label>
+            <label>minHumidifierOffSec <input id="minHumidifierOffSec" type="number" step="1" /></label>
+          </div>
+        </div>
+        <div class="setpoint-group">
+          <h4>Temperatura / seguridad</h4>
+          <div class="reference-grid">
+            <label>tempMin <input id="tempMin" type="number" step="0.01" /></label>
+            <label>tempMax <input id="tempMax" type="number" step="0.01" /></label>
+            <label>tempCritical <input id="tempCritical" type="number" step="0.01" /></label>
+          </div>
+        </div>
+        <div class="setpoint-group">
+          <h4>Reglas del sistema</h4>
+          <div class="reference-grid">
+            <label>mutualExclusion
+              <select id="mutualExclusion"><option value="true">true</option><option value="false">false</option></select>
+            </label>
+            <label>crop <input id="crop" type="text" /></label>
+          </div>
+        </div>
+        <div class="download-grid">
+          <button id="saveSetpoints" class="btn btn-on">Guardar SETs</button>
+        </div>
+      </section>
+
+      <section class="card section-block">
+        <h3 class="section-title">Lógica de control</h3>
+        <ul class="logic-list">
+          <li>Manual = control directo desde la web.</li>
+          <li>Auto = control por SETs.</li>
+          <li>CO2 alto activa ventilación.</li>
+          <li>Humedad baja activa humidificador.</li>
+          <li>Con mutualExclusion activado no funcionan juntos.</li>
+          <li>delayAfterVentilationSec evita humidificar inmediatamente después de ventilar.</li>
+          <li>Cambios quedan registrados en history y events.</li>
+        </ul>
+      </section>
+
       <section class="card section-block">
         <h3 class="section-title">Historial ambiental</h3>
         <p id="historyStatus" class="muted">Cargando historial...</p>
