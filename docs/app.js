@@ -39,7 +39,7 @@ const els = {
 };
 
 const diag = {
-  lastReadingDate: null,
+  lastReadingTimestamp: null,
   lastUrl: "--",
   lastGetStatus: "--",
   lastPatchStatus: "--"
@@ -69,11 +69,22 @@ function formatUptime(ms) {
   return `${h}:${m}:${s}`;
 }
 
-function formatDate(value) {
-  if (!value) return "--";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return String(value);
-  return parsed.toLocaleString();
+function normalizeTimestamp(value) {
+  if (!value || Number.isNaN(Number(value))) return null;
+  const n = Number(value);
+  return n < 1000000000000 ? n * 1000 : n;
+}
+
+function formatTimestamp(value) {
+  const normalized = normalizeTimestamp(value);
+  if (!normalized) return "--";
+  return new Date(normalized).toLocaleString("es-AR");
+}
+
+function secondsSinceTimestamp(value) {
+  const normalized = normalizeTimestamp(value);
+  if (!normalized) return null;
+  return Math.max(0, Math.floor((Date.now() - normalized) / 1000));
 }
 
 function boolBadge(value) {
@@ -89,7 +100,7 @@ function setStatus(text, cssClass) {
 
 function updateRefreshTime() {
   const now = new Date();
-  els.lastRefresh.textContent = `Última actualización web: ${now.toLocaleString()}`;
+  els.lastRefresh.textContent = `Última consulta de la web: ${now.toLocaleString("es-AR")}`;
 }
 
 function getStateClass(metric, value) {
@@ -124,11 +135,15 @@ function paintMetricState(el, metric, value) {
 }
 
 function updateReadingAge() {
-  if (!diag.lastReadingDate) {
+  if (!diag.lastReadingTimestamp) {
     els.readingAge.textContent = "Hace -- segundos";
     return;
   }
-  const seconds = Math.max(0, Math.floor((Date.now() - diag.lastReadingDate.getTime()) / 1000));
+  const seconds = secondsSinceTimestamp(diag.lastReadingTimestamp);
+  if (seconds === null) {
+    els.readingAge.textContent = "Hace -- segundos";
+    return;
+  }
   els.readingAge.textContent = `Hace ${seconds} segundos`;
 }
 
@@ -168,8 +183,8 @@ function renderData(data) {
   document.querySelectorAll('[data-relay="relay1"]').forEach((b) => b.classList.toggle("active", b.dataset.value === String(relay1On)));
   document.querySelectorAll('[data-relay="relay2"]').forEach((b) => b.classList.toggle("active", b.dataset.value === String(relay2On)));
 
-  diag.lastReadingDate = data.timestamp ? new Date(data.timestamp) : new Date();
-  els.lastReading.textContent = `Última lectura recibida: ${diag.lastReadingDate.toLocaleString()}`;
+  diag.lastReadingTimestamp = data.timestamp ?? null;
+  els.lastReading.textContent = `Última medición del ESP32: ${formatTimestamp(data.timestamp)}`;
   updateReadingAge();
 }
 
@@ -182,6 +197,7 @@ async function fetchLatest() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const latest = await response.json();
+    console.log("Latest recibida:", latest);
     renderData(latest);
     updateRefreshTime();
     updateDiagnostics();
@@ -212,7 +228,7 @@ function renderHistory(list) {
     <article class="record-item">
       <div class="record-top">
         <span class="record-title">Registro ${item.key}</span>
-        <span class="record-time">${formatDate(item.timestamp || item.ts)}</span>
+        <span class="record-time">${formatTimestamp(item.timestamp || item.ts)}</span>
       </div>
       <div class="record-grid">
         <p><strong>Temp:</strong> ${formatValue(item.temperatura)} °C</p>
@@ -227,7 +243,7 @@ function renderHistory(list) {
 }
 
 function getEventTone(event) {
-  const text = `${event.tipoEvento || ""} ${event.motivo || ""}`.toLowerCase();
+  const text = `${event.type || event.tipoEvento || ""} ${event.reason || event.motivo || ""}`.toLowerCase();
   return /(alert|alarma|crit|warn|error)/.test(text) ? " event-alert" : "";
 }
 
@@ -239,23 +255,40 @@ function renderEvents(list) {
     return;
   }
   els.eventsStatus.textContent = `Mostrando ${list.length} eventos recientes`;
-  els.eventsList.innerHTML = list.map((event) => `
+  els.eventsList.innerHTML = list.map((event) => {
+    const actuatorLabel = event.actuatorName || event.actuator || event.actuador || "--";
+    const fromValue = event.from;
+    const toValue = event.to;
+    const fromText = fromValue === true ? "ON" : fromValue === false ? "OFF" : "--";
+    const toText = toValue === true ? "ON" : toValue === false ? "OFF" : "--";
+    const snapshot = event.snapshot || {};
+    const snapshotTemp = snapshot.temperatura ?? "--";
+    const snapshotHum = snapshot.humedadAmbiente ?? "--";
+    const snapshotCo2 = snapshot.co2 ?? "--";
+    const eventType = event.type || event.tipoEvento || "Evento";
+    const eventReason = event.reason ?? event.motivo ?? "--";
+    const eventMode = event.mode ?? event.modo ?? "--";
+    console.log("Evento renderizado:", event);
+    return `
     <article class="record-item${getEventTone(event)}">
       <div class="record-top">
-        <span class="record-title">${event.tipoEvento || "Evento"}</span>
-        <span class="record-time">${formatDate(event.timestamp || event.ts)}${!event.timestamp && !event.ts && event.uptimeMs ? ` · uptime ${formatUptime(event.uptimeMs)}` : ""}</span>
+        <span class="record-title">${eventType}</span>
+        <span class="record-time">${formatTimestamp(event.timestamp || event.ts)}</span>
       </div>
       <div class="record-grid">
-        <p><strong>Actuador:</strong> ${event.actuador || "--"}</p>
-        <p><strong>Estado:</strong> ${event.estadoAnterior ?? "--"} → ${event.nuevoEstado ?? "--"}</p>
-        <p><strong>Motivo:</strong> ${event.motivo ?? "--"}</p>
+        <p><strong>Actuador:</strong> ${actuatorLabel}</p>
+        <p><strong>Relay:</strong> ${event.relay ?? "--"}</p>
+        <p><strong>Estado:</strong> ${fromText} → ${toText}</p>
+        <p><strong>Motivo:</strong> ${eventReason}</p>
         <p><strong>Duración:</strong> ${event.durationSec !== undefined ? `${event.durationSec} s` : "--"}</p>
-        <p><strong>Temp snapshot:</strong> ${formatValue(event.temperatura ?? event.snapshotTemperatura)} °C</p>
-        <p><strong>Hum snapshot:</strong> ${formatValue(event.humedadAmbiente ?? event.snapshotHumedadAmbiente)} %</p>
-        <p><strong>CO2 snapshot:</strong> ${formatValue(event.co2 ?? event.snapshotCo2)} ppm</p>
+        <p><strong>Temp snapshot:</strong> ${snapshotTemp} °C</p>
+        <p><strong>Hum snapshot:</strong> ${snapshotHum} %</p>
+        <p><strong>CO2 snapshot:</strong> ${snapshotCo2} ppm</p>
+        <p><strong>Modo:</strong> ${eventMode}</p>
       </div>
     </article>
-  `).join("");
+  `;
+  }).join("");
 }
 
 async function fetchHistory() {
