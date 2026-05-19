@@ -64,6 +64,8 @@ const els = {
   modeSelect: document.getElementById("modeSelect"),
   applyMode: document.getElementById("applyMode"),
   manualControlHint: document.getElementById("manualControlHint"),
+  autoDecisionStatus: document.getElementById("autoDecisionStatus"),
+  activeSetSummary: document.getElementById("activeSetSummary"),
   setpointsStatus: document.getElementById("setpointsStatus"),
   saveSetpoints: document.getElementById("saveSetpoints"),
   co2Min: document.getElementById("co2Min"),
@@ -192,7 +194,15 @@ function normalizeTimestamp(value) {
 function formatTimestamp(value) {
   const normalized = normalizeTimestamp(value);
   if (!normalized) return "--";
-  return new Date(normalized).toLocaleString("es-AR");
+  return new Intl.DateTimeFormat("es-AR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).format(new Date(normalized));
 }
 
 function secondsSinceTimestamp(value) {
@@ -213,8 +223,7 @@ function setStatus(text, cssClass) {
 }
 
 function updateRefreshTime() {
-  const now = new Date();
-  els.lastRefresh.textContent = `Última consulta de la web: ${now.toLocaleString("es-AR")}`;
+  els.lastRefresh.textContent = `Última consulta de la web: ${formatTimestamp(Date.now())}`;
 }
 
 function getStateClass(metric, value) {
@@ -278,16 +287,12 @@ function renderData(data) {
 
   els.temperatura.textContent = formatValue(data.temperatura);
   els.humedadAmbiente.textContent = formatValue(data.humedadAmbiente);
-  els.humedadSuelo.textContent = formatValue(data.humedadSuelo);
   els.co2.textContent = formatValue(data.co2);
-  els.distanciaCm.textContent = formatDistance(data.distanciaCm);
   els.uptime.textContent = formatUptime(data.uptimeMs);
 
   paintMetricState(els.temperatura, "temperatura", data.temperatura);
   paintMetricState(els.humedadAmbiente, "humedadAmbiente", data.humedadAmbiente);
-  paintMetricState(els.humedadSuelo, "humedadSuelo", data.humedadSuelo);
   paintMetricState(els.co2, "co2", data.co2);
-  paintMetricState(els.distanciaCm, "distanciaCm", data.distanciaCm);
 
   const relay1On = data.relay1 === true;
   const relay2On = data.relay2 === true;
@@ -300,6 +305,7 @@ function renderData(data) {
   diag.lastReadingTimestamp = data.timestamp ?? null;
   els.lastReading.textContent = `Última medición del ESP32: ${formatTimestamp(data.timestamp)}`;
   updateReadingAge();
+  renderAutomaticDecision();
 }
 
 async function fetchLatest() {
@@ -587,6 +593,61 @@ function setManualControlsEnabled(enabled) {
   els.manualControlHint.textContent = enabled ? "" : "Modo automático activo: los relés manuales están deshabilitados.";
 }
 
+function renderAutomaticDecision() {
+  const latest = state.latest;
+  const config = state.config;
+  if (!latest || !config) {
+    els.autoDecisionStatus.textContent = "Esperando datos suficientes.";
+    return;
+  }
+  const mode = config.mode === "auto" ? "auto" : "manual";
+  if (mode === "manual") {
+    els.autoDecisionStatus.textContent = "Modo manual: los relés se controlan desde la web.";
+    return;
+  }
+  const co2 = toNumberOrNull(latest.co2);
+  const co2Max = toNumberOrNull(config.co2Max);
+  const hum = toNumberOrNull(latest.humedadAmbiente);
+  const humMin = toNumberOrNull(config.humMin);
+  if (co2 !== null && co2Max !== null && co2 >= co2Max) {
+    els.autoDecisionStatus.textContent = "Automático: ventilando por CO2 alto.";
+    return;
+  }
+  if (latest.relay2 === true) {
+    els.autoDecisionStatus.textContent = "Automático: ventilación activa.";
+    return;
+  }
+  if (hum !== null && humMin !== null && hum < humMin && latest.relay1 === true) {
+    els.autoDecisionStatus.textContent = "Automático: humidificando por humedad baja.";
+    return;
+  }
+  if (latest.relay1 === false && latest.relay2 === false) {
+    els.autoDecisionStatus.textContent = "Automático: sistema en reposo.";
+    return;
+  }
+  els.autoDecisionStatus.textContent = "Esperando datos suficientes.";
+}
+
+function renderSetSummary() {
+  const config = state.config;
+  if (!config) {
+    els.activeSetSummary.innerHTML = "<p>Esperando configuración...</p>";
+    return;
+  }
+  const co2Min = formatValue(config.co2Min);
+  const co2Max = formatValue(config.co2Max);
+  const humMin = formatValue(config.humMin);
+  const humMax = formatValue(config.humMax);
+  const tempCritical = formatValue(config.tempCritical);
+  const exclusion = config.mutualExclusion === true ? "Activada" : "Desactivada";
+  els.activeSetSummary.innerHTML = `
+    <p><strong>CO2:</strong> ${co2Min} – ${co2Max} ppm</p>
+    <p><strong>Humedad:</strong> ${humMin} – ${humMax} %</p>
+    <p><strong>Temperatura crítica:</strong> ${tempCritical} °C</p>
+    <p><strong>Exclusión mutua:</strong> ${exclusion}</p>
+  `;
+}
+
 function renderConfig(config) {
   if (!config || typeof config !== "object") {
     els.modeStatus.textContent = "Advertencia: no se pudo cargar config.json";
@@ -607,6 +668,8 @@ function renderConfig(config) {
     }
   });
   els.setpointsStatus.textContent = "SETs listos para edición";
+  renderSetSummary();
+  renderAutomaticDecision();
 }
 
 async function fetchConfig() {

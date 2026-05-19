@@ -33,13 +33,11 @@
       </section>
 
       <section class="section-block">
-        <h3 class="section-title">Sensores</h3>
+        <h3 class="section-title">Sensores principales · Fructificación Melena de León</h3>
         <div class="metrics-grid">
           <article class="metric-card card"><h3>Temperatura</h3><p class="metric-value" id="temperatura">--</p><p class="metric-unit">°C</p></article>
           <article class="metric-card card"><h3>Humedad ambiente</h3><p class="metric-value" id="humedadAmbiente">--</p><p class="metric-unit">%</p></article>
-          <article class="metric-card card"><h3>Humedad suelo</h3><p class="metric-value" id="humedadSuelo">--</p><p class="metric-unit">%</p></article>
           <article class="metric-card card"><h3>CO2</h3><p class="metric-value" id="co2">--</p><p class="metric-unit">ppm</p></article>
-          <article class="metric-card card"><h3>Distancia / nivel</h3><p class="metric-value" id="distanciaCm">Sin lectura</p><p class="metric-unit">cm</p></article>
           <article class="metric-card card"><h3>Tiempo encendido</h3><p class="metric-value" id="uptime">--</p><p class="metric-unit">hh:mm:ss</p></article>
         </div>
       </section>
@@ -48,7 +46,8 @@
         <h3 class="section-title">Actuadores</h3>
         <div class="actuator-grid">
           <article class="actuator-item">
-            <h4>Actuador 1</h4>
+            <h4>Humidificador</h4>
+            <p class="muted actuator-subtitle">Humidificador ultrasónico</p>
             <p id="relay1State" class="muted">Estado: --</p>
             <div class="button-group">
               <button data-relay="relay1" data-value="true" class="btn btn-on">ON</button>
@@ -56,7 +55,8 @@
             </div>
           </article>
           <article class="actuator-item">
-            <h4>Actuador 2</h4>
+            <h4>Ventilación</h4>
+            <p class="muted actuator-subtitle">Intractor + extractor</p>
             <p id="relay2State" class="muted">Estado: --</p>
             <div class="button-group">
               <button data-relay="relay2" data-value="true" class="btn btn-on">ON</button>
@@ -64,6 +64,22 @@
             </div>
           </article>
         </div>
+      </section>
+      
+      <section class="summary-grid section-block">
+        <article class="card">
+          <h3 class="section-title">Decisión automática</h3>
+          <p id="autoDecisionStatus" class="muted">Esperando datos suficientes.</p>
+        </article>
+        <article class="card">
+          <h3 class="section-title">Resumen de SETs activos</h3>
+          <div id="activeSetSummary" class="set-summary-list">
+            <p>CO2: --</p>
+            <p>Humedad: --</p>
+            <p>Temperatura crítica: --</p>
+            <p>Exclusión mutua: --</p>
+          </div>
+        </article>
       </section>
 
 
@@ -136,13 +152,12 @@
       <section class="card section-block">
         <h3 class="section-title">Lógica de control</h3>
         <ul class="logic-list">
-          <li>Manual = control directo desde la web.</li>
-          <li>Auto = control por SETs.</li>
+          <li>Manual: control directo de relés desde la web.</li>
+          <li>Automático: el ESP32 decide según SETs.</li>
           <li>CO2 alto activa ventilación.</li>
           <li>Humedad baja activa humidificador.</li>
-          <li>Con mutualExclusion activado no funcionan juntos.</li>
-          <li>delayAfterVentilationSec evita humidificar inmediatamente después de ventilar.</li>
-          <li>Cambios quedan registrados en history y events.</li>
+          <li>Humidificador y ventilación no funcionan juntos si exclusión mutua está activada.</li>
+          <li>Todos los cambios quedan registrados en eventos e historial.</li>
         </ul>
       </section>
 

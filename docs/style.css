@@ -39,6 +39,7 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 .metric-value.state-critical { color: #9f1f1f; }
 .actuator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
 .actuator-item { background: var(--green-soft); border-radius: 12px; padding: .85rem; border: 1px solid #d0e6d9; }
+.actuator-subtitle { margin: .2rem 0 .4rem; font-size: .85rem; }
 .button-group { display: flex; gap: .65rem; }
 .btn { flex: 1; border: none; border-radius: 10px; padding: .65rem; font-weight: 700; cursor: pointer; opacity: .75; }
 .btn-on { background: #2ca76b; color: var(--white); }
@@ -89,3 +90,5 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 .logic-list { margin:.3rem 0 0 1rem; color:var(--text); }
 .logic-list li { margin:.25rem 0; }
 .btn:disabled, .btn-disabled { cursor:not-allowed; opacity:.45; }
+.summary-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:1rem; }
+.set-summary-list p { margin:.28rem 0; }
