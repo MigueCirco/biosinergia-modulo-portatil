@@ -340,7 +340,6 @@ async function fetchLatest() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const latest = await response.json();
-    console.log("Latest recibida:", latest);
     state.latest = latest;
     renderData(latest);
     updateCalibrationView();
@@ -413,7 +412,6 @@ function renderEvents(list) {
     const eventType = event.type || event.tipoEvento || "Evento";
     const eventReason = event.reason ?? event.motivo ?? "--";
     const eventMode = event.mode ?? event.modo ?? "--";
-    console.log("Evento renderizado:", event);
     return `
     <article class="record-item${getEventTone(event)}">
       <div class="record-top">
@@ -557,7 +555,6 @@ async function fetchHistory() {
     const response = await fetch(buildUrl(historyPath));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const history = await response.json();
-    console.log("History recibida:", history);
     renderHistory(normalizeFirebaseList(history));
   } catch (error) {
     console.error("Error history:", error);
@@ -572,7 +569,6 @@ async function fetchEvents() {
     const response = await fetch(buildUrl(eventsPath));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const events = await response.json();
-    console.log("Events recibidos:", events);
     renderEvents(normalizeFirebaseList(events));
   } catch (error) {
     console.error("Error events:", error);
@@ -897,7 +893,6 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js")
       .then((registration) => {
-        console.log("Service Worker registrado:", registration.scope);
       })
       .catch((error) => {
         console.warn("No se pudo registrar Service Worker:", error);
