@@ -95,3 +95,12 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 
 .install-card { border-left: 4px solid #2ca76b; background: #f8fdf9; }
 .install-card p { margin: .35rem 0; }
+
+.charts-toolbar { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:.7rem; align-items:end; margin:.7rem 0; }
+.charts-toolbar label{display:flex;flex-direction:column;gap:.3rem;color:var(--muted);}
+.charts-toolbar select{border:1px solid #c9dfd4;border-radius:9px;padding:.55rem .65rem;background:#fff;}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.8rem;margin-top:.8rem;}
+.card-lite{background:#f8fdf9;border:1px solid #dbe9e2;border-radius:12px;padding:.75rem;}
+.chart-canvas-wrap{height:280px;}
+.summary-mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.4rem .8rem;}
+.summary-mini-grid p{margin:.1rem 0;}

@@ -18,6 +18,8 @@ const historyDownloadPath = `/devices/${DEVICE_ID}/history.json`;
 const eventsDownloadPath = `/devices/${DEVICE_ID}/events.json`;
 const refreshMs = 5000;
 const historyRefreshMs = 15000;
+const chartsRefreshMs = 60000;
+const charts24hLimit = 1500;
 
 const els = {
   connectionStatus: document.getElementById("connectionStatus"),
@@ -81,14 +83,28 @@ const els = {
   minVentilationOffSec: document.getElementById("minVentilationOffSec"),
   delayAfterVentilationSec: document.getElementById("delayAfterVentilationSec"),
   mutualExclusion: document.getElementById("mutualExclusion"),
-  crop: document.getElementById("crop")
+  crop: document.getElementById("crop"),
+  chartRangeSelect: document.getElementById("chartRangeSelect"),
+  refreshCharts: document.getElementById("refreshCharts"),
+  chartsStatus: document.getElementById("chartsStatus"),
+  chartsSummary: document.getElementById("chartsSummary"),
+  tempReference: document.getElementById("tempReference"),
+  humReference: document.getElementById("humReference"),
+  co2Reference: document.getElementById("co2Reference"),
+  tempChart: document.getElementById("tempChart"),
+  humChart: document.getElementById("humChart"),
+  co2Chart: document.getElementById("co2Chart"),
+  actuatorsChart: document.getElementById("actuatorsChart")
 };
 
 const diag = {
   lastReadingTimestamp: null,
   lastUrl: "--",
   lastGetStatus: "--",
-  lastPatchStatus: "--"
+  lastPatchStatus: "--",
+  chartsLastLoad: "--",
+  chartsCount: "--",
+  chartsState: "--"
 };
 
 const state = {
@@ -275,6 +291,12 @@ function updateDiagnostics() {
   els.diagLastUrl.textContent = diag.lastUrl;
   els.diagGetStatus.textContent = diag.lastGetStatus;
   els.diagPatchStatus.textContent = diag.lastPatchStatus;
+  const chartsLoadEl = document.getElementById("diagChartsLastLoad");
+  const chartsCountEl = document.getElementById("diagChartsCount");
+  const chartsStateEl = document.getElementById("diagChartsState");
+  if (chartsLoadEl) chartsLoadEl.textContent = diag.chartsLastLoad;
+  if (chartsCountEl) chartsCountEl.textContent = diag.chartsCount;
+  if (chartsStateEl) chartsStateEl.textContent = diag.chartsState;
 }
 
 function renderData(data) {
@@ -411,6 +433,77 @@ function renderEvents(list) {
     </article>
   `;
   }).join("");
+}
+
+
+const chartInstances = { temp: null, hum: null, co2: null, actuators: null };
+
+function normalizeHistoryRecords(data) {
+  if (!data || typeof data !== "object") return [];
+  return Object.entries(data).map(([id, value]) => {
+    const rec = value || {};
+    const tsRaw = Number(rec.timestamp ?? rec.ts);
+    const timestamp = Number.isFinite(tsRaw) && tsRaw > 100000 ? tsRaw : null;
+    return {
+      id,
+      timestamp,
+      date: timestamp ? new Date(timestamp * 1000) : null,
+      temperatura: toNumberOrNull(rec.temperatura),
+      humedadAmbiente: toNumberOrNull(rec.humedadAmbiente),
+      co2: toNumberOrNull(rec.co2),
+      relay1: rec.relay1 === true ? 1 : rec.relay1 === false ? 0 : null,
+      relay2: rec.relay2 === true ? 1 : rec.relay2 === false ? 0 : null,
+      mode: rec.mode ?? rec.modo ?? null,
+      uptimeMs: toNumberOrNull(rec.uptimeMs)
+    };
+  }).sort((a,b)=> String(a.id).localeCompare(String(b.id)));
+}
+
+function destroyCharts(){ Object.keys(chartInstances).forEach(k=>{ if(chartInstances[k]){ chartInstances[k].destroy(); chartInstances[k]=null; } }); }
+function createLineChart(canvas, label, labels, values, color, stepped=false){
+  if (!canvas || typeof Chart === "undefined") return null;
+  return new Chart(canvas.getContext("2d"), { type:"line", data:{labels,datasets:[{label,data:values,borderColor:color,backgroundColor:color,tension:0.25,stepped,pointRadius:0}]}, options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{maxTicksLimit:6}},y:{beginAtZero:false}}} });
+}
+function getChartRangeSelection(){ return els.chartRangeSelect?.value || "300"; }
+function buildHistoryChartPath(range){
+  const limit = range === "24h" ? charts24hLimit : Number(range || 300);
+  return `/devices/${DEVICE_ID}/history.json?orderBy=%22$key%22&limitToLast=${limit}`;
+}
+function summarize(values){ if(!values.length) return null; return values.reduce((a,b)=>a+b,0)/values.length; }
+function pctInRange(values,min,max){ if(!values.length||min===null||max===null) return null; const ok=values.filter(v=>v>=min&&v<=max).length; return (ok*100)/values.length; }
+function setChartsStatus(text,isError=false){ els.chartsStatus.textContent=text; els.chartsStatus.classList.toggle("section-error",isError); }
+
+async function fetchAndRenderCharts(){
+  const range = getChartRangeSelection();
+  if (typeof Chart === "undefined") { setChartsStatus("No se pudo cargar Chart.js. El resto del dashboard sigue disponible.", true); destroyCharts(); return; }
+  setChartsStatus("Cargando datos históricos…");
+  try {
+    const path = buildHistoryChartPath(range);
+    const data = await fetchCollection(path);
+    let records = normalizeHistoryRecords(data);
+    if (range === "24h") { const cutoff = Date.now() - 24*60*60*1000; records = records.filter(r=>r.date && r.date.getTime()>=cutoff); }
+    if (!records.length) { setChartsStatus("No hay datos suficientes para graficar."); destroyCharts(); return; }
+    const labels = records.map(r => r.date ? formatTimestamp(r.timestamp) : `Registro ${r.id}`);
+    const tempVals = records.filter(r=>r.temperatura!==null).map(r=>r.temperatura);
+    const humVals = records.filter(r=>r.humedadAmbiente!==null).map(r=>r.humedadAmbiente);
+    const co2Vals = records.filter(r=>r.co2!==null).map(r=>r.co2);
+    destroyCharts();
+    chartInstances.temp = createLineChart(els.tempChart,"Temperatura (°C)",labels,records.map(r=>r.temperatura),"#2ca76b");
+    chartInstances.hum = createLineChart(els.humChart,"Humedad (%)",labels,records.map(r=>r.humedadAmbiente),"#26734d");
+    chartInstances.co2 = createLineChart(els.co2Chart,"CO2 (ppm)",labels,records.map(r=>r.co2),"#0f766e");
+    if (els.actuatorsChart && typeof Chart !== "undefined") {
+      chartInstances.actuators = new Chart(els.actuatorsChart.getContext("2d"), {type:"line",data:{labels,datasets:[{label:"Humidificador",data:records.map(r=>r.relay1),borderColor:"#3b82f6",stepped:true,pointRadius:0},{label:"Ventilación",data:records.map(r=>r.relay2),borderColor:"#f97316",stepped:true,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:1,ticks:{stepSize:1}}}}});
+    }
+    const cfg=state.config||{};
+    els.tempReference.textContent = `SET activo: ${formatValue(cfg.tempMin)} – ${formatValue(cfg.tempMax)} °C`;
+    els.humReference.textContent = `SET activo: ${formatValue(cfg.humMin)} – ${formatValue(cfg.humMax)} %`;
+    els.co2Reference.textContent = `SET activo: ${formatValue(cfg.co2Min)} – ${formatValue(cfg.co2Max)} ppm`;
+    const humIn = pctInRange(humVals,toNumberOrNull(cfg.humMin),toNumberOrNull(cfg.humMax));
+    const co2In = pctInRange(co2Vals,toNumberOrNull(cfg.co2Min),toNumberOrNull(cfg.co2Max));
+    els.chartsSummary.innerHTML = `<p>Promedio temp: <strong>${summarize(tempVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio hum: <strong>${summarize(humVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio CO2: <strong>${summarize(co2Vals)?.toFixed(2) ?? "--"}</strong></p><p>Máx CO2: <strong>${co2Vals.length ? Math.max(...co2Vals).toFixed(2) : "--"}</strong></p><p>Mediciones: <strong>${records.length}</strong></p><p>Humedad en rango: <strong>${humIn===null?"--":humIn.toFixed(1)+"%"}</strong></p><p>CO2 en rango: <strong>${co2In===null?"--":co2In.toFixed(1)+"%"}</strong></p>`;
+    setChartsStatus(`Mostrando ${records.length} mediciones para gráficos.`);
+    diag.chartsLastLoad = formatTimestamp(Date.now()); diag.chartsCount = String(records.length); diag.chartsState = "OK"; updateDiagnostics();
+  } catch (error) { console.error("Error charts:", error); setChartsStatus("Error al cargar historial.", true); diag.chartsState = "Error"; updateDiagnostics(); }
 }
 
 async function fetchCalibration() {
@@ -561,6 +654,7 @@ async function saveCalibration() {
     updateDiagnostics();
     await fetchCalibration();
 fetchConfig();
+fetchAndRenderCharts();
   } catch (error) {
     console.error("Error guardando calibración:", error);
     els.calibrationStatus.textContent = "Error guardando calibración";
@@ -576,6 +670,7 @@ async function disableCalibration() {
     updateDiagnostics();
     await fetchCalibration();
 fetchConfig();
+fetchAndRenderCharts();
   } catch (error) {
     console.error("Error desactivando calibración:", error);
     els.calibrationStatus.textContent = "Error al desactivar calibración";
@@ -699,6 +794,7 @@ async function applyMode() {
     els.modeStatus.textContent = "Modo aplicado correctamente";
     updateDiagnostics();
     await fetchConfig();
+fetchAndRenderCharts();
   } catch (error) {
     console.error("Error aplicando modo:", error);
     els.modeStatus.textContent = "Error al aplicar modo";
@@ -719,6 +815,7 @@ async function saveSetpoints() {
     els.setpointsStatus.textContent = "SETs guardados correctamente";
     updateDiagnostics();
     await fetchConfig();
+fetchAndRenderCharts();
   } catch (error) {
     console.error("Error guardando setpoints:", error);
     els.setpointsStatus.textContent = "Error guardando SETs";
@@ -734,6 +831,8 @@ els.saveCalibration.addEventListener("click", saveCalibration);
 els.disableCalibration.addEventListener("click", disableCalibration);
 els.applyMode.addEventListener("click", applyMode);
 els.saveSetpoints.addEventListener("click", saveSetpoints);
+els.refreshCharts?.addEventListener("click", fetchAndRenderCharts);
+els.chartRangeSelect?.addEventListener("change", fetchAndRenderCharts);
 
 document.querySelectorAll("button[data-relay]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -749,11 +848,13 @@ fetchHistory();
 fetchEvents();
 fetchCalibration();
 fetchConfig();
+fetchAndRenderCharts();
 setInterval(fetchLatest, refreshMs);
 setInterval(fetchHistory, historyRefreshMs);
 setInterval(fetchEvents, historyRefreshMs);
 setInterval(fetchCalibration, historyRefreshMs);
 setInterval(fetchConfig, historyRefreshMs);
+setInterval(fetchAndRenderCharts, chartsRefreshMs);
 setInterval(updateReadingAge, 1000);
 
 
