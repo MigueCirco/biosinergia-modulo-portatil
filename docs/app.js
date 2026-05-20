@@ -94,7 +94,8 @@ const els = {
   tempChart: document.getElementById("tempChart"),
   humChart: document.getElementById("humChart"),
   co2Chart: document.getElementById("co2Chart"),
-  actuatorsChart: document.getElementById("actuatorsChart")
+  humidifierChart: document.getElementById("humidifierChart"),
+  ventilationChart: document.getElementById("ventilationChart")
 };
 
 const diag = {
@@ -436,7 +437,29 @@ function renderEvents(list) {
 }
 
 
-const chartInstances = { temp: null, hum: null, co2: null, actuators: null };
+const chartInstances = { temp: null, hum: null, co2: null, humidifier: null, ventilation: null };
+const optimalRangePlugin = {
+  id: "optimalRangePlugin",
+  beforeDatasetsDraw(chart, _args, pluginOptions) {
+    const range = pluginOptions?.optimalRange;
+    if (!range || !Number.isFinite(range.yMin) || !Number.isFinite(range.yMax)) return;
+    const yScale = chart.scales.y;
+    const xScale = chart.scales.x;
+    if (!yScale || !xScale) return;
+    const top = yScale.getPixelForValue(range.yMax);
+    const bottom = yScale.getPixelForValue(range.yMin);
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.fillStyle = "rgba(44, 167, 107, 0.13)";
+    ctx.fillRect(xScale.left, top, xScale.right - xScale.left, bottom - top);
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = "rgba(22, 101, 59, 0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(xScale.left, top); ctx.lineTo(xScale.right, top); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xScale.left, bottom); ctx.lineTo(xScale.right, bottom); ctx.stroke();
+    ctx.restore();
+  }
+};
 
 function normalizeHistoryRecords(data) {
   if (!data || typeof data !== "object") return [];
@@ -447,7 +470,7 @@ function normalizeHistoryRecords(data) {
     return {
       id,
       timestamp,
-      date: timestamp ? new Date(timestamp * 1000) : null,
+      date: timestamp ? new Date(normalizeTimestamp(timestamp)) : null,
       temperatura: toNumberOrNull(rec.temperatura),
       humedadAmbiente: toNumberOrNull(rec.humedadAmbiente),
       co2: toNumberOrNull(rec.co2),
@@ -456,13 +479,23 @@ function normalizeHistoryRecords(data) {
       mode: rec.mode ?? rec.modo ?? null,
       uptimeMs: toNumberOrNull(rec.uptimeMs)
     };
-  }).sort((a,b)=> String(a.id).localeCompare(String(b.id)));
+  }).sort((a,b)=> (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
 }
 
 function destroyCharts(){ Object.keys(chartInstances).forEach(k=>{ if(chartInstances[k]){ chartInstances[k].destroy(); chartInstances[k]=null; } }); }
-function createLineChart(canvas, label, labels, values, color, stepped=false){
+function createLineChart(canvas, label, labels, values, color, stepped=false, optimalRange=null, yAxisConfig={}){
   if (!canvas || typeof Chart === "undefined") return null;
-  return new Chart(canvas.getContext("2d"), { type:"line", data:{labels,datasets:[{label,data:values,borderColor:color,backgroundColor:color,tension:0.25,stepped,pointRadius:0}]}, options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{maxTicksLimit:6}},y:{beginAtZero:false}}} });
+  return new Chart(canvas.getContext("2d"), { type:"line", data:{labels,datasets:[{label,data:values,borderColor:color,backgroundColor:color,tension:0.25,stepped,pointRadius:0,borderWidth:2}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{optimalRangePlugin:{optimalRange}},scales:{x:{ticks:{maxTicksLimit:8,maxRotation:0,callback:(_v, i)=> String(labels[i] || "").split(", ").pop()}},y:{beginAtZero:false,...yAxisConfig}}}, plugins:[optimalRangePlugin] });
+}
+function buildSharedTimeAxis(records){
+  const sortedRecords = [...records];
+  const chartTimes = sortedRecords.map((r) => normalizeTimestamp(r.timestamp));
+  const chartLabels = sortedRecords.map((r, index) => {
+    if (chartTimes[index]) return formatTimestamp(chartTimes[index]);
+    if (Number.isFinite(r.uptimeMs)) return `Uptime ${formatUptime(r.uptimeMs)}`;
+    return `Registro ${r.id}`;
+  });
+  return { sortedRecords, chartTimes, chartLabels };
 }
 function getChartRangeSelection(){ return els.chartRangeSelect?.value || "300"; }
 function buildHistoryChartPath(range){
@@ -475,34 +508,36 @@ function setChartsStatus(text,isError=false){ els.chartsStatus.textContent=text;
 
 async function fetchAndRenderCharts(){
   const range = getChartRangeSelection();
-  if (typeof Chart === "undefined") { setChartsStatus("No se pudo cargar Chart.js. El resto del dashboard sigue disponible.", true); destroyCharts(); return; }
+  if (typeof Chart === "undefined") { setChartsStatus("No se pudo cargar Chart.js. El resto del dashboard sigue disponible.", true); destroyCharts(); diag.chartsState = "Error"; updateDiagnostics(); return; }
   setChartsStatus("Cargando datos históricos…");
   try {
     const path = buildHistoryChartPath(range);
     const data = await fetchCollection(path);
     let records = normalizeHistoryRecords(data);
     if (range === "24h") { const cutoff = Date.now() - 24*60*60*1000; records = records.filter(r=>r.date && r.date.getTime()>=cutoff); }
-    if (!records.length) { setChartsStatus("No hay datos suficientes para graficar."); destroyCharts(); return; }
-    const labels = records.map(r => r.date ? formatTimestamp(r.timestamp) : `Registro ${r.id}`);
-    const tempVals = records.filter(r=>r.temperatura!==null).map(r=>r.temperatura);
-    const humVals = records.filter(r=>r.humedadAmbiente!==null).map(r=>r.humedadAmbiente);
-    const co2Vals = records.filter(r=>r.co2!==null).map(r=>r.co2);
-    destroyCharts();
-    chartInstances.temp = createLineChart(els.tempChart,"Temperatura (°C)",labels,records.map(r=>r.temperatura),"#2ca76b");
-    chartInstances.hum = createLineChart(els.humChart,"Humedad (%)",labels,records.map(r=>r.humedadAmbiente),"#26734d");
-    chartInstances.co2 = createLineChart(els.co2Chart,"CO2 (ppm)",labels,records.map(r=>r.co2),"#0f766e");
-    if (els.actuatorsChart && typeof Chart !== "undefined") {
-      chartInstances.actuators = new Chart(els.actuatorsChart.getContext("2d"), {type:"line",data:{labels,datasets:[{label:"Humidificador",data:records.map(r=>r.relay1),borderColor:"#3b82f6",stepped:true,pointRadius:0},{label:"Ventilación",data:records.map(r=>r.relay2),borderColor:"#f97316",stepped:true,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:1,ticks:{stepSize:1}}}}});
-    }
+    if (!records.length) { setChartsStatus("No hay datos suficientes para graficar."); destroyCharts(); diag.chartsCount = "0"; diag.chartsState = "Sin datos"; diag.chartsLastLoad = formatTimestamp(Date.now()); updateDiagnostics(); return; }
+    const { sortedRecords, chartLabels } = buildSharedTimeAxis(records);
+    const tempVals = sortedRecords.filter(r=>r.temperatura!==null).map(r=>r.temperatura);
+    const humVals = sortedRecords.filter(r=>r.humedadAmbiente!==null).map(r=>r.humedadAmbiente);
+    const co2Vals = sortedRecords.filter(r=>r.co2!==null).map(r=>r.co2);
     const cfg=state.config||{};
-    els.tempReference.textContent = `SET activo: ${formatValue(cfg.tempMin)} – ${formatValue(cfg.tempMax)} °C`;
-    els.humReference.textContent = `SET activo: ${formatValue(cfg.humMin)} – ${formatValue(cfg.humMax)} %`;
-    els.co2Reference.textContent = `SET activo: ${formatValue(cfg.co2Min)} – ${formatValue(cfg.co2Max)} ppm`;
+    const tempRange = { yMin: toNumberOrNull(cfg.tempMin), yMax: toNumberOrNull(cfg.tempMax) };
+    const humRange = { yMin: toNumberOrNull(cfg.humMin), yMax: toNumberOrNull(cfg.humMax) };
+    const co2Range = { yMin: toNumberOrNull(cfg.co2Min), yMax: toNumberOrNull(cfg.co2Max) };
+    destroyCharts();
+    chartInstances.temp = createLineChart(els.tempChart,"Temperatura (°C)",chartLabels,sortedRecords.map(r=>r.temperatura),"#2ca76b",false,tempRange);
+    chartInstances.hum = createLineChart(els.humChart,"Humedad (%)",chartLabels,sortedRecords.map(r=>r.humedadAmbiente),"#2e8b9f",false,humRange);
+    chartInstances.humidifier = createLineChart(els.humidifierChart,"Humidificador",chartLabels,sortedRecords.map(r=>r.relay1),"#3b82f6",true,null,{min:0,max:1,ticks:{stepSize:1,callback:(v)=>v===1?"ON":"OFF"}});
+    chartInstances.ventilation = createLineChart(els.ventilationChart,"Ventilación",chartLabels,sortedRecords.map(r=>r.relay2),"#f97316",true,null,{min:0,max:1,ticks:{stepSize:1,callback:(v)=>v===1?"ON":"OFF"}});
+    chartInstances.co2 = createLineChart(els.co2Chart,"CO2 (ppm)",chartLabels,sortedRecords.map(r=>r.co2),"#0f766e",false,co2Range);
+    els.tempReference.textContent = `Rango SET activo: ${formatValue(cfg.tempMin)} – ${formatValue(cfg.tempMax)} °C`;
+    els.humReference.textContent = `Rango SET activo: ${formatValue(cfg.humMin)} – ${formatValue(cfg.humMax)} %`;
+    els.co2Reference.textContent = `Rango SET activo: ${formatValue(cfg.co2Min)} – ${formatValue(cfg.co2Max)} ppm`;
     const humIn = pctInRange(humVals,toNumberOrNull(cfg.humMin),toNumberOrNull(cfg.humMax));
     const co2In = pctInRange(co2Vals,toNumberOrNull(cfg.co2Min),toNumberOrNull(cfg.co2Max));
-    els.chartsSummary.innerHTML = `<p>Promedio temp: <strong>${summarize(tempVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio hum: <strong>${summarize(humVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio CO2: <strong>${summarize(co2Vals)?.toFixed(2) ?? "--"}</strong></p><p>Máx CO2: <strong>${co2Vals.length ? Math.max(...co2Vals).toFixed(2) : "--"}</strong></p><p>Mediciones: <strong>${records.length}</strong></p><p>Humedad en rango: <strong>${humIn===null?"--":humIn.toFixed(1)+"%"}</strong></p><p>CO2 en rango: <strong>${co2In===null?"--":co2In.toFixed(1)+"%"}</strong></p>`;
-    setChartsStatus(`Mostrando ${records.length} mediciones para gráficos.`);
-    diag.chartsLastLoad = formatTimestamp(Date.now()); diag.chartsCount = String(records.length); diag.chartsState = "OK"; updateDiagnostics();
+    els.chartsSummary.innerHTML = `<p>Promedio temperatura: <strong>${summarize(tempVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio humedad: <strong>${summarize(humVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio CO2: <strong>${summarize(co2Vals)?.toFixed(2) ?? "--"}</strong></p><p>Máximo CO2: <strong>${co2Vals.length ? Math.max(...co2Vals).toFixed(2) : "--"}</strong></p><p>Mediciones: <strong>${sortedRecords.length}</strong></p><p>Humedad en rango: <strong>${humIn===null?"--":humIn.toFixed(1)+"%"}</strong></p><p>CO2 en rango: <strong>${co2In===null?"--":co2In.toFixed(1)+"%"}</strong></p>`;
+    setChartsStatus(`Mostrando ${sortedRecords.length} mediciones para gráficos.`);
+    diag.chartsLastLoad = formatTimestamp(Date.now()); diag.chartsCount = String(sortedRecords.length); diag.chartsState = "OK"; updateDiagnostics();
   } catch (error) { console.error("Error charts:", error); setChartsStatus("Error al cargar historial.", true); diag.chartsState = "Error"; updateDiagnostics(); }
 }
 
