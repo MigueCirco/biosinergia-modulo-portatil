@@ -166,6 +166,50 @@
         </ul>
       </section>
 
+
+      <section class="card section-block">
+        <h3 class="section-title">Gráficos históricos</h3>
+        <p class="muted">Visualización de temperatura, humedad, CO2 y estados de actuadores registrados en Firebase.</p>
+        <div class="charts-toolbar">
+          <label>Rango
+            <select id="chartRangeSelect">
+              <option value="30">Últimas 30 mediciones</option>
+              <option value="100">Últimas 100 mediciones</option>
+              <option value="300" selected>Últimas 300 mediciones</option>
+              <option value="24h">Últimas 24 horas</option>
+            </select>
+          </label>
+          <button id="refreshCharts" class="btn btn-secondary">Actualizar gráficos</button>
+        </div>
+        <p id="chartsStatus" class="muted">Cargando datos históricos…</p>
+        <article class="chart-summary card-lite">
+          <h4>Resumen del rango</h4>
+          <div id="chartsSummary" class="summary-mini-grid"></div>
+        </article>
+        <div class="charts-grid">
+          <article class="card-lite chart-card">
+            <h4>Temperatura</h4>
+            <p id="tempReference" class="muted">SET activo: --</p>
+            <div class="chart-canvas-wrap"><canvas id="tempChart"></canvas></div>
+          </article>
+          <article class="card-lite chart-card">
+            <h4>Humedad ambiente</h4>
+            <p id="humReference" class="muted">SET activo: --</p>
+            <div class="chart-canvas-wrap"><canvas id="humChart"></canvas></div>
+          </article>
+          <article class="card-lite chart-card">
+            <h4>CO2</h4>
+            <p id="co2Reference" class="muted">SET activo: --</p>
+            <div class="chart-canvas-wrap"><canvas id="co2Chart"></canvas></div>
+          </article>
+          <article class="card-lite chart-card">
+            <h4>Actuadores</h4>
+            <p class="muted">0 = OFF / 1 = ON</p>
+            <div class="chart-canvas-wrap"><canvas id="actuatorsChart"></canvas></div>
+          </article>
+        </div>
+      </section>
+
       <section class="card section-block">
         <h3 class="section-title">Historial ambiental</h3>
         <p id="historyStatus" class="muted">Cargando historial...</p>
@@ -243,12 +287,16 @@
           <p><strong>Última URL consultada:</strong> <span id="diagLastUrl">--</span></p>
           <p><strong>Último estado GET:</strong> <span id="diagGetStatus">--</span></p>
           <p><strong>Último estado PATCH:</strong> <span id="diagPatchStatus">--</span></p>
+          <p><strong>Última carga de gráficos:</strong> <span id="diagChartsLastLoad">--</span></p>
+          <p><strong>Registros en gráficos:</strong> <span id="diagChartsCount">--</span></p>
+          <p><strong>Estado gráficos:</strong> <span id="diagChartsState">--</span></p>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">BioSinergia · Tecnología para cultivar con datos</footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>
