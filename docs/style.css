@@ -73,14 +73,6 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 
 .download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .65rem; }
 .btn-secondary { background: #e2efe8; color: #1f4f38; opacity: 1; border: 1px solid #c9dfd4; }
-.calibration-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .7rem; margin: .8rem 0; }
-.calibration-item { background: #f6fbf8; border: 1px solid #dbe9e2; border-radius: 12px; padding: .7rem; }
-.calibration-item h4 { margin: 0 0 .35rem; color: var(--green-dark); }
-.calibration-item p { margin: .2rem 0; }
-.reference-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .7rem; margin-bottom: .8rem; }
-.reference-grid label { display: flex; flex-direction: column; gap: .3rem; font-size: .92rem; color: var(--muted); }
-.reference-grid input { border: 1px solid #c9dfd4; border-radius: 9px; padding: .55rem .65rem; font-size: .95rem; }
-.offset-preview { background: var(--green-soft); border: 1px dashed #c2ddcf; color: var(--green-dark); border-radius: 10px; padding: .6rem; margin-bottom: .8rem; font-weight: 600; }
 .mode-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:.7rem; margin:.7rem 0; }
 .mode-grid label { display:flex; flex-direction:column; gap:.3rem; color:var(--muted); font-size:.92rem; }
 .mode-grid input, .mode-grid select, .reference-grid select { border:1px solid #c9dfd4; border-radius:9px; padding:.55rem .65rem; font-size:.95rem; background:#fff; }
@@ -113,3 +105,15 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
   .chart-container.large .chart-canvas-wrap{height:320px;}
   .chart-container.timeline .chart-canvas-wrap{height:170px;}
 }
+
+.calibration-note { margin-top: .4rem; }
+.calibration-mode-hint { color: #92400e; font-weight: 600; }
+.calibration-cards-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: .8rem; margin-top: .8rem; }
+.calibration-sensor-card { background:#f6fbf8; border:1px solid #dbe9e2; border-radius:14px; padding:.9rem; box-shadow:0 4px 12px rgba(20,83,45,.08); }
+.calibration-sensor-card-co2 { border-color:#16a34a; box-shadow:0 8px 20px rgba(22,163,74,.18); }
+.calibration-sensor-card h4 { margin:0 0 .5rem; color:var(--green-dark); }
+.calibration-sensor-card label { display:flex; flex-direction:column; gap:.35rem; font-weight:600; margin:.6rem 0; }
+.calibration-sensor-card input { min-height:42px; font-size:1rem; }
+.calibration-error { color:#b91c1c; min-height:1.2rem; }
+.calibration-toggle-actions { margin-top:.5rem; }
+.offset-preview { background: var(--green-soft); border: 1px dashed #c2ddcf; color: var(--green-dark); border-radius: 10px; padding: .6rem; margin-bottom: .4rem; font-weight: 600; }

@@ -48,19 +48,36 @@ const els = {
   downloadHistoryJson: document.getElementById("downloadHistoryJson"),
   downloadEventsJson: document.getElementById("downloadEventsJson"),
   calibrationStatus: document.getElementById("calibrationStatus"),
+  calibrationModeHint: document.getElementById("calibrationModeHint"),
+  enableCalibration: document.getElementById("enableCalibration"),
+  disableCalibration: document.getElementById("disableCalibration"),
   temperaturaRaw: document.getElementById("temperaturaRaw"),
   humedadRaw: document.getElementById("humedadRaw"),
   co2Raw: document.getElementById("co2Raw"),
   temperaturaCal: document.getElementById("temperaturaCal"),
   humedadCal: document.getElementById("humedadCal"),
   co2Cal: document.getElementById("co2Cal"),
+  temperatureOffsetCurrent: document.getElementById("temperatureOffsetCurrent"),
+  humidityOffsetCurrent: document.getElementById("humidityOffsetCurrent"),
+  co2OffsetCurrent: document.getElementById("co2OffsetCurrent"),
   temperatureRef: document.getElementById("temperatureRef"),
   humidityRef: document.getElementById("humidityRef"),
   co2Ref: document.getElementById("co2Ref"),
-  calculateCalibration: document.getElementById("calculateCalibration"),
-  saveCalibration: document.getElementById("saveCalibration"),
-  disableCalibration: document.getElementById("disableCalibration"),
-  offsetPreview: document.getElementById("offsetPreview"),
+  calculateTemperature: document.getElementById("calculateTemperature"),
+  calculateHumidity: document.getElementById("calculateHumidity"),
+  calculateCo2: document.getElementById("calculateCo2"),
+  saveTemperature: document.getElementById("saveTemperature"),
+  saveHumidity: document.getElementById("saveHumidity"),
+  saveCo2: document.getElementById("saveCo2"),
+  resetTemperature: document.getElementById("resetTemperature"),
+  resetHumidity: document.getElementById("resetHumidity"),
+  resetCo2: document.getElementById("resetCo2"),
+  temperaturePreview: document.getElementById("temperaturePreview"),
+  humidityPreview: document.getElementById("humidityPreview"),
+  co2Preview: document.getElementById("co2Preview"),
+  temperatureCalibrationError: document.getElementById("temperatureCalibrationError"),
+  humidityCalibrationError: document.getElementById("humidityCalibrationError"),
+  co2CalibrationError: document.getElementById("co2CalibrationError"),
   modeStatus: document.getElementById("modeStatus"),
   currentMode: document.getElementById("currentMode"),
   modeSelect: document.getElementById("modeSelect"),
@@ -105,13 +122,16 @@ const diag = {
   lastPatchStatus: "--",
   chartsLastLoad: "--",
   chartsCount: "--",
-  chartsState: "--"
+  chartsState: "--",
+  calibrationPatchStatus: "--",
+  calibrationSensor: "--",
+  calibrationUpdatedAt: "--"
 };
 
 const state = {
   latest: null,
   calibration: null,
-  pendingOffsets: null,
+  pendingCalibrationBySensor: {},
   config: null
 };
 
@@ -147,12 +167,17 @@ function updateCalibrationView() {
   els.humedadCal.textContent = formatValue(latest.humedadAmbiente);
   els.co2Cal.textContent = formatValue(latest.co2);
 
+  els.temperatureOffsetCurrent.textContent = formatValue(calibration.temperatureOffset ?? 0);
+  els.humidityOffsetCurrent.textContent = formatValue(calibration.humidityOffset ?? 0);
+  els.co2OffsetCurrent.textContent = formatValue(calibration.co2Offset ?? 0);
   if (!hasCalibration) {
     els.calibrationStatus.textContent = "Calibración no configurada";
   } else {
     const enabledText = calibration.enabled === false ? "desactivada" : "activa";
     els.calibrationStatus.textContent = `Calibración ${enabledText} · método: ${calibration.method ?? "--"}`;
   }
+  const mode = (state.latest || {}).mode ?? (state.config || {}).mode;
+  els.calibrationModeHint.textContent = mode === "manual" ? "" : "Para calibrar, se recomienda dejar el sistema en modo manual y esperar estabilización de las lecturas.";
 }
 
 function jsonToCsv(list) {
@@ -293,11 +318,17 @@ function updateDiagnostics() {
   els.diagGetStatus.textContent = diag.lastGetStatus;
   els.diagPatchStatus.textContent = diag.lastPatchStatus;
   const chartsLoadEl = document.getElementById("diagChartsLastLoad");
+  const calibrationPatchEl = document.getElementById("diagCalibrationPatch");
+  const calibrationSensorEl = document.getElementById("diagCalibrationSensor");
+  const calibrationAtEl = document.getElementById("diagCalibrationAt");
   const chartsCountEl = document.getElementById("diagChartsCount");
   const chartsStateEl = document.getElementById("diagChartsState");
   if (chartsLoadEl) chartsLoadEl.textContent = diag.chartsLastLoad;
   if (chartsCountEl) chartsCountEl.textContent = diag.chartsCount;
   if (chartsStateEl) chartsStateEl.textContent = diag.chartsState;
+  if (calibrationPatchEl) calibrationPatchEl.textContent = diag.calibrationPatchStatus;
+  if (calibrationSensorEl) calibrationSensorEl.textContent = diag.calibrationSensor;
+  if (calibrationAtEl) calibrationAtEl.textContent = diag.calibrationUpdatedAt;
 }
 
 function renderData(data) {
@@ -625,89 +656,58 @@ async function handleDownload(path, format, baseName) {
   }
 }
 
-function calculateCalibration() {
-  const latest = state.latest || {};
-  const temperatureRaw = toNumberOrNull(latest.temperaturaRaw ?? latest.temperatura);
-  const humidityRaw = toNumberOrNull(latest.humedadAmbienteRaw ?? latest.humedadAmbiente);
-  const co2Raw = toNumberOrNull(latest.co2Raw ?? latest.co2);
-  const temperatureRef = toNumberOrNull(els.temperatureRef.value);
-  const humidityRef = toNumberOrNull(els.humidityRef.value);
-  const co2Ref = toNumberOrNull(els.co2Ref.value);
-
-  if ([temperatureRaw, humidityRaw, co2Raw, temperatureRef, humidityRef, co2Ref].some((v) => v === null)) {
-    els.offsetPreview.textContent = "Offsets calculados: datos insuficientes";
-    return;
-  }
-
-  state.pendingOffsets = {
-    temperatureOffset: Number((temperatureRef - temperatureRaw).toFixed(3)),
-    humidityOffset: Number((humidityRef - humidityRaw).toFixed(3)),
-    co2Offset: Number((co2Ref - co2Raw).toFixed(3)),
-    temperatureRef,
-    humidityRef,
-    co2Ref,
-    temperatureRaw,
-    humidityRaw,
-    co2Raw
+function getSensorCalibrationMeta(sensorKey) {
+  const map = {
+    temperature: { raw: toNumberOrNull((state.latest || {}).temperaturaRaw ?? (state.latest || {}).temperatura), calibrated: toNumberOrNull((state.latest || {}).temperatura), ref: toNumberOrNull(els.temperatureRef.value), min: -10, max: 60, offsetField: "temperatureOffset", previewEl: els.temperaturePreview, errorEl: els.temperatureCalibrationError, unit: "°C" },
+    humidity: { raw: toNumberOrNull((state.latest || {}).humedadAmbienteRaw ?? (state.latest || {}).humedadAmbiente), calibrated: toNumberOrNull((state.latest || {}).humedadAmbiente), ref: toNumberOrNull(els.humidityRef.value), min: 0, max: 100, offsetField: "humidityOffset", previewEl: els.humidityPreview, errorEl: els.humidityCalibrationError, unit: "%" },
+    co2: { raw: toNumberOrNull((state.latest || {}).co2Raw ?? (state.latest || {}).co2), calibrated: toNumberOrNull((state.latest || {}).co2), ref: toNumberOrNull(els.co2Ref.value), min: 300, max: 10000, offsetField: "co2Offset", previewEl: els.co2Preview, errorEl: els.co2CalibrationError, unit: "ppm" }
   };
-
-  const p = state.pendingOffsets;
-  els.offsetPreview.textContent = `Offsets calculados: Temp ${p.temperatureOffset}, Hum ${p.humidityOffset}, CO2 ${p.co2Offset}`;
+  return map[sensorKey];
 }
-
-async function saveCalibration() {
-  if (!state.pendingOffsets) {
-    els.calibrationStatus.textContent = "Primero calcula la calibración";
-    return;
-  }
-  const p = state.pendingOffsets;
-  const payload = {
-    enabled: true,
-    temperatureOffset: p.temperatureOffset,
-    humidityOffset: p.humidityOffset,
-    co2Offset: p.co2Offset,
-    method: "software_offset",
-    lastReference: {
-      temperatureRef: p.temperatureRef,
-      humidityRef: p.humidityRef,
-      co2Ref: p.co2Ref,
-      temperatureRaw: p.temperatureRaw,
-      humidityRaw: p.humidityRaw,
-      co2Raw: p.co2Raw,
-      createdAt: Date.now()
-    }
-  };
-  try {
-    const response = await fetch(buildUrl(calibrationPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    diag.lastPatchStatus = `HTTP ${response.status}`;
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    els.calibrationStatus.textContent = "Calibración guardada";
-    updateDiagnostics();
-    await fetchCalibration();
-fetchConfig();
-fetchAndRenderCharts();
-  } catch (error) {
-    console.error("Error guardando calibración:", error);
-    els.calibrationStatus.textContent = "Error guardando calibración";
-  }
+function calculateSensorCalibration(sensorKey){
+  const meta=getSensorCalibrationMeta(sensorKey); if(!meta) return;
+  meta.errorEl.textContent="";
+  if(meta.raw===null){ meta.errorEl.textContent="No hay lectura válida para calibrar este sensor."; meta.previewEl.textContent="Sin cálculo."; return; }
+  if(meta.ref===null){ meta.errorEl.textContent="Ingresa un valor de referencia válido."; return; }
+  if(meta.ref<meta.min||meta.ref>meta.max){ meta.errorEl.textContent=`Referencia fuera de rango (${meta.min} a ${meta.max} ${meta.unit}).`; return; }
+  const offset=Number((meta.ref-meta.raw).toFixed(3));
+  if(!Number.isFinite(offset)){ meta.errorEl.textContent="No se pudo calcular un offset válido."; return; }
+  state.pendingCalibrationBySensor[sensorKey]={raw:meta.raw,reference:meta.ref,offset,expectedCalibrated:Number((meta.raw+offset).toFixed(3))};
+  const p=state.pendingCalibrationBySensor[sensorKey];
+  meta.previewEl.textContent=`Raw: ${p.raw} ${meta.unit} · Referencia: ${p.reference} ${meta.unit} · Offset calculado: ${p.offset} · ${sensorKey==="co2"?"CO2":"Valor"} calibrado esperado: ${p.expectedCalibrated} ${meta.unit}`;
 }
-
+async function patchCalibration(payload, label){
+  const response = await fetch(buildUrl(calibrationPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  diag.lastPatchStatus=`HTTP ${response.status}`; diag.calibrationPatchStatus=`${label}: HTTP ${response.status}`;
+  if(!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+async function saveSensorCalibration(sensorKey){
+  const meta=getSensorCalibrationMeta(sensorKey); const pending=state.pendingCalibrationBySensor[sensorKey];
+  if(!pending){ meta.errorEl.textContent="Primero calcula el offset."; return; }
+  const now=new Date().toISOString();
+  const fromMap={temperature:"dashboard_calibration_temperature",humidity:"dashboard_calibration_humidity",co2:"dashboard_calibration_co2"};
+  const payload={enabled:true,method:"software_offset",[meta.offsetField]:pending.offset,updatedAtWeb:now,updatedFrom:fromMap[sensorKey]};
+  try{ await patchCalibration(payload,`calibración ${sensorKey}`); diag.calibrationSensor=sensorKey; diag.calibrationUpdatedAt=now; els.calibrationStatus.textContent=`Calibración de ${sensorKey} guardada`; updateDiagnostics(); await fetchCalibration(); }
+  catch(e){ console.error(e); meta.errorEl.textContent="Error guardando calibración."; }
+}
+async function resetSensorCalibration(sensorKey){
+  const meta=getSensorCalibrationMeta(sensorKey); const now=new Date().toISOString();
+  const fromMap={temperature:"dashboard_reset_temperature",humidity:"dashboard_reset_humidity",co2:"dashboard_reset_co2"};
+  try{ await patchCalibration({[meta.offsetField]:0,updatedAtWeb:now,updatedFrom:fromMap[sensorKey]},`reset ${sensorKey}`); diag.calibrationSensor=`reset_${sensorKey}`; diag.calibrationUpdatedAt=now; els.calibrationStatus.textContent=`Offset de ${sensorKey} reseteado`; updateDiagnostics(); await fetchCalibration(); }
+  catch(e){ console.error(e); meta.errorEl.textContent="Error reseteando calibración."; }
+}
+async function enableCalibration(){ try{ await patchCalibration({enabled:true,method:"software_offset"},"activar calibración"); els.calibrationStatus.textContent="Calibración activada"; updateDiagnostics(); await fetchCalibration(); } catch(e){ els.calibrationStatus.textContent="Error activando calibración"; }}
 async function disableCalibration() {
   try {
-    const response = await fetch(buildUrl(calibrationPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: false }) });
-    diag.lastPatchStatus = `HTTP ${response.status}`;
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await patchCalibration({ enabled: false },"desactivar calibración");
     els.calibrationStatus.textContent = "Calibración desactivada";
     updateDiagnostics();
     await fetchCalibration();
-fetchConfig();
-fetchAndRenderCharts();
   } catch (error) {
     console.error("Error desactivando calibración:", error);
     els.calibrationStatus.textContent = "Error al desactivar calibración";
   }
 }
-
 
 const setpointFields = ["co2Min","co2Max","humMin","humMax","tempMin","tempMax","tempCritical","minHumidifierOnSec","minHumidifierOffSec","minVentilationOnSec","minVentilationOffSec","delayAfterVentilationSec","mutualExclusion","crop"];
 
@@ -857,8 +857,16 @@ els.downloadHistoryCsv.addEventListener("click", () => handleDownload(historyDow
 els.downloadEventsCsv.addEventListener("click", () => handleDownload(eventsDownloadPath, "csv", "events"));
 els.downloadHistoryJson.addEventListener("click", () => handleDownload(historyDownloadPath, "json", "history"));
 els.downloadEventsJson.addEventListener("click", () => handleDownload(eventsDownloadPath, "json", "events"));
-els.calculateCalibration.addEventListener("click", calculateCalibration);
-els.saveCalibration.addEventListener("click", saveCalibration);
+els.calculateTemperature.addEventListener("click", () => calculateSensorCalibration("temperature"));
+els.calculateHumidity.addEventListener("click", () => calculateSensorCalibration("humidity"));
+els.calculateCo2.addEventListener("click", () => calculateSensorCalibration("co2"));
+els.saveTemperature.addEventListener("click", () => saveSensorCalibration("temperature"));
+els.saveHumidity.addEventListener("click", () => saveSensorCalibration("humidity"));
+els.saveCo2.addEventListener("click", () => saveSensorCalibration("co2"));
+els.resetTemperature.addEventListener("click", () => resetSensorCalibration("temperature"));
+els.resetHumidity.addEventListener("click", () => resetSensorCalibration("humidity"));
+els.resetCo2.addEventListener("click", () => resetSensorCalibration("co2"));
+els.enableCalibration.addEventListener("click", enableCalibration);
 els.disableCalibration.addEventListener("click", disableCalibration);
 els.applyMode.addEventListener("click", applyMode);
 els.saveSetpoints.addEventListener("click", saveSetpoints);

@@ -247,39 +247,34 @@
       <section class="card section-block">
         <h3 class="section-title">Calibración de sensores</h3>
         <p id="calibrationStatus" class="muted">Cargando calibración...</p>
-        <div class="calibration-grid">
-          <article class="calibration-item">
-            <h4>Temperatura</h4>
-            <p>Raw: <span id="temperaturaRaw">--</span></p>
-            <p>Calibrado: <span id="temperaturaCal">--</span></p>
-          </article>
-          <article class="calibration-item">
-            <h4>Humedad ambiente</h4>
-            <p>Raw: <span id="humedadRaw">--</span></p>
-            <p>Calibrado: <span id="humedadCal">--</span></p>
-          </article>
-          <article class="calibration-item">
-            <h4>CO2</h4>
-            <p>Raw: <span id="co2Raw">--</span></p>
-            <p>Calibrado: <span id="co2Cal">--</span></p>
-          </article>
-        </div>
-        <div class="reference-grid">
-          <label>Temperatura referencia
-            <input id="temperatureRef" type="number" step="0.01" placeholder="Ej: 25.4" />
-          </label>
-          <label>Humedad referencia
-            <input id="humidityRef" type="number" step="0.01" placeholder="Ej: 61.2" />
-          </label>
-          <label>CO2 referencia
-            <input id="co2Ref" type="number" step="0.01" placeholder="Ej: 480" />
-          </label>
-        </div>
-        <div class="offset-preview" id="offsetPreview">Offsets calculados: --</div>
-        <div class="download-grid">
-          <button id="calculateCalibration" class="btn btn-secondary">Calcular calibración</button>
-          <button id="saveCalibration" class="btn btn-on">Guardar calibración</button>
+        <p class="muted calibration-note">Recomendación: si un sensor está desconectado o húmedo, no calibrarlo. Calibrar solo los sensores con lectura estable.</p>
+        <p id="calibrationModeHint" class="muted calibration-mode-hint"></p>
+        <div class="download-grid calibration-toggle-actions">
+          <button id="enableCalibration" class="btn btn-on">Activar calibración</button>
           <button id="disableCalibration" class="btn btn-off">Desactivar calibración</button>
+        </div>
+        <div class="calibration-cards-grid">
+          <article class="calibration-sensor-card">
+            <h4>Temperatura</h4>
+            <p>Raw: <span id="temperaturaRaw">--</span> °C</p><p>Calibrado: <span id="temperaturaCal">--</span> °C</p><p>Offset actual: <span id="temperatureOffsetCurrent">--</span></p>
+            <label>Temperatura referencia<input id="temperatureRef" type="number" step="0.01" placeholder="Ej: 25.4" /></label>
+            <p id="temperaturePreview" class="offset-preview">Sin cálculo.</p><p id="temperatureCalibrationError" class="muted calibration-error"></p>
+            <div class="download-grid"><button id="calculateTemperature" class="btn btn-secondary">Calcular offset temperatura</button><button id="saveTemperature" class="btn btn-on">Guardar calibración temperatura</button><button id="resetTemperature" class="btn btn-off">Reset temperatura</button></div>
+          </article>
+          <article class="calibration-sensor-card">
+            <h4>Humedad ambiente</h4>
+            <p>Raw: <span id="humedadRaw">--</span> %</p><p>Calibrado: <span id="humedadCal">--</span> %</p><p>Offset actual: <span id="humidityOffsetCurrent">--</span></p>
+            <label>Humedad referencia<input id="humidityRef" type="number" step="0.01" placeholder="Ej: 61.2" /></label>
+            <p id="humidityPreview" class="offset-preview">Sin cálculo.</p><p id="humidityCalibrationError" class="muted calibration-error"></p>
+            <div class="download-grid"><button id="calculateHumidity" class="btn btn-secondary">Calcular offset humedad</button><button id="saveHumidity" class="btn btn-on">Guardar calibración humedad</button><button id="resetHumidity" class="btn btn-off">Reset humedad</button></div>
+          </article>
+          <article class="calibration-sensor-card calibration-sensor-card-co2">
+            <h4>CO2</h4>
+            <p>Raw: <span id="co2Raw">--</span> ppm</p><p>Calibrado: <span id="co2Cal">--</span> ppm</p><p>Offset actual: <span id="co2OffsetCurrent">--</span></p>
+            <label>CO2 referencia<input id="co2Ref" type="number" step="1" placeholder="Ej: 550" /></label>
+            <p id="co2Preview" class="offset-preview">Sin cálculo.</p><p id="co2CalibrationError" class="muted calibration-error"></p>
+            <div class="download-grid"><button id="calculateCo2" class="btn btn-secondary">Calcular offset CO2</button><button id="saveCo2" class="btn btn-on">Guardar calibración CO2</button><button id="resetCo2" class="btn btn-off">Reset CO2</button></div>
+          </article>
         </div>
       </section>
 
@@ -297,6 +292,9 @@
           <p><strong>Última URL consultada:</strong> <span id="diagLastUrl">--</span></p>
           <p><strong>Último estado GET:</strong> <span id="diagGetStatus">--</span></p>
           <p><strong>Último estado PATCH:</strong> <span id="diagPatchStatus">--</span></p>
+          <p><strong>Último PATCH calibración:</strong> <span id="diagCalibrationPatch">--</span></p>
+          <p><strong>Último sensor calibrado:</strong> <span id="diagCalibrationSensor">--</span></p>
+          <p><strong>Última calibración web:</strong> <span id="diagCalibrationAt">--</span></p>
           <p><strong>Última carga de gráficos:</strong> <span id="diagChartsLastLoad">--</span></p>
           <p><strong>Registros en gráficos:</strong> <span id="diagChartsCount">--</span></p>
           <p><strong>Estado gráficos:</strong> <span id="diagChartsState">--</span></p>
