@@ -117,3 +117,19 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 .calibration-error { color:#b91c1c; min-height:1.2rem; }
 .calibration-toggle-actions { margin-top:.5rem; }
 .offset-preview { background: var(--green-soft); border: 1px dashed #c2ddcf; color: var(--green-dark); border-radius: 10px; padding: .6rem; margin-bottom: .4rem; font-weight: 600; }
+
+.timer-config-section { border-left: 4px solid #2ca76b; }
+.timer-info-card { margin: .8rem 0; padding: .75rem; border-radius: 12px; border: 1px solid #c9dfd4; background: var(--green-soft); color: var(--green-dark); }
+.timer-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:.7rem; margin:.7rem 0; }
+.timer-grid label { display:flex; flex-direction:column; gap:.3rem; color:var(--muted); font-size:.92rem; font-weight:600; }
+.timer-grid input, .timer-grid select { border:1px solid #c9dfd4; border-radius:9px; padding:.55rem .65rem; font-size:.95rem; background:#fff; min-height:42px; }
+.timer-general-grid { align-items:end; }
+.timer-cards-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:.85rem; margin-top:.8rem; }
+.timer-actuator-card { background:#f6fbf8; border:1px solid #dbe9e2; border-radius:14px; padding:.9rem; box-shadow:0 4px 12px rgba(20,83,45,.08); }
+.timer-actuator-card h4 { margin:0 0 .45rem; color:var(--green-dark); }
+.timer-note { margin:.55rem 0; padding:.6rem .75rem; border-radius:10px; background:#fff7d6; color:#6b4d00; font-weight:700; }
+.timer-note[hidden], .timer-config-section[hidden] { display:none; }
+.timer-actions { margin-top:.8rem; }
+@media (max-width: 460px) {
+  .timer-grid, .timer-cards-grid { grid-template-columns: 1fr; }
+}

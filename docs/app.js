@@ -14,6 +14,7 @@ const historyPath = `/devices/${DEVICE_ID}/history.json?orderBy=%22$key%22&limit
 const eventsPath = `/devices/${DEVICE_ID}/events.json?orderBy=%22$key%22&limitToLast=10`;
 const calibrationPath = `/devices/${DEVICE_ID}/calibration.json`;
 const configPath = `/devices/${DEVICE_ID}/config.json`;
+const timerConfigPath = `/devices/${DEVICE_ID}/config/timer.json`;
 const historyDownloadPath = `/devices/${DEVICE_ID}/history.json`;
 const eventsDownloadPath = `/devices/${DEVICE_ID}/events.json`;
 const refreshMs = 5000;
@@ -112,7 +113,34 @@ const els = {
   humChart: document.getElementById("humChart"),
   co2Chart: document.getElementById("co2Chart"),
   humidifierChart: document.getElementById("humidifierChart"),
-  ventilationChart: document.getElementById("ventilationChart")
+  ventilationChart: document.getElementById("ventilationChart"),
+  timerConfigSection: document.getElementById("timerConfigSection"),
+  timerStatus: document.getElementById("timerStatus"),
+  timerEnabled: document.getElementById("timerEnabled"),
+  timerMode: document.getElementById("timerMode"),
+  timerTimezone: document.getElementById("timerTimezone"),
+  timerMutualExclusion: document.getElementById("timerMutualExclusion"),
+  timerDelayBetweenActuatorsSec: document.getElementById("timerDelayBetweenActuatorsSec"),
+  timerMutualNote: document.getElementById("timerMutualNote"),
+  timerHumidifierEnabled: document.getElementById("timerHumidifierEnabled"),
+  timerHumidifierDefaultOnSec: document.getElementById("timerHumidifierDefaultOnSec"),
+  timerHumidifierDefaultOffMin: document.getElementById("timerHumidifierDefaultOffMin"),
+  timerHumidifierDayStart: document.getElementById("timerHumidifierDayStart"),
+  timerHumidifierDayEnd: document.getElementById("timerHumidifierDayEnd"),
+  timerHumidifierDayOnSec: document.getElementById("timerHumidifierDayOnSec"),
+  timerHumidifierDayOffMin: document.getElementById("timerHumidifierDayOffMin"),
+  timerHumidifierNightOnSec: document.getElementById("timerHumidifierNightOnSec"),
+  timerHumidifierNightOffMin: document.getElementById("timerHumidifierNightOffMin"),
+  timerVentilationEnabled: document.getElementById("timerVentilationEnabled"),
+  timerVentilationDefaultOnSec: document.getElementById("timerVentilationDefaultOnSec"),
+  timerVentilationDefaultOffMin: document.getElementById("timerVentilationDefaultOffMin"),
+  timerVentilationDayStart: document.getElementById("timerVentilationDayStart"),
+  timerVentilationDayEnd: document.getElementById("timerVentilationDayEnd"),
+  timerVentilationDayOnSec: document.getElementById("timerVentilationDayOnSec"),
+  timerVentilationDayOffMin: document.getElementById("timerVentilationDayOffMin"),
+  timerVentilationNightOnSec: document.getElementById("timerVentilationNightOnSec"),
+  timerVentilationNightOffMin: document.getElementById("timerVentilationNightOffMin"),
+  saveTimerConfig: document.getElementById("saveTimerConfig")
 };
 
 const diag = {
@@ -125,7 +153,10 @@ const diag = {
   chartsState: "--",
   calibrationPatchStatus: "--",
   calibrationSensor: "--",
-  calibrationUpdatedAt: "--"
+  calibrationUpdatedAt: "--",
+  timerConfigured: "--",
+  timerUpdatedAt: "--",
+  timerPatchStatus: "--"
 };
 
 const state = {
@@ -323,12 +354,18 @@ function updateDiagnostics() {
   const calibrationAtEl = document.getElementById("diagCalibrationAt");
   const chartsCountEl = document.getElementById("diagChartsCount");
   const chartsStateEl = document.getElementById("diagChartsState");
+  const timerConfiguredEl = document.getElementById("diagTimerConfigured");
+  const timerUpdatedAtEl = document.getElementById("diagTimerUpdatedAt");
+  const timerPatchEl = document.getElementById("diagTimerPatch");
   if (chartsLoadEl) chartsLoadEl.textContent = diag.chartsLastLoad;
   if (chartsCountEl) chartsCountEl.textContent = diag.chartsCount;
   if (chartsStateEl) chartsStateEl.textContent = diag.chartsState;
   if (calibrationPatchEl) calibrationPatchEl.textContent = diag.calibrationPatchStatus;
   if (calibrationSensorEl) calibrationSensorEl.textContent = diag.calibrationSensor;
   if (calibrationAtEl) calibrationAtEl.textContent = diag.calibrationUpdatedAt;
+  if (timerConfiguredEl) timerConfiguredEl.textContent = diag.timerConfigured;
+  if (timerUpdatedAtEl) timerUpdatedAtEl.textContent = diag.timerUpdatedAt;
+  if (timerPatchEl) timerPatchEl.textContent = diag.timerPatchStatus;
 }
 
 function renderData(data) {
@@ -709,6 +746,208 @@ async function disableCalibration() {
   }
 }
 
+
+const timerDefaults = {
+  enabled: true,
+  mode: "schedule",
+  timezone: "America/Argentina/Tucuman",
+  mutualExclusion: true,
+  delayBetweenActuatorsSec: 30,
+  fallbackIfSensorsInvalid: true,
+  humidifier: {
+    enabled: true,
+    defaultCycle: { onSec: 45, offMin: 12 },
+    windows: [
+      { name: "Horas de mayor calor", start: "11:00", end: "18:00", onSec: 45, offMin: 10 },
+      { name: "Noche", start: "18:00", end: "11:00", onSec: 30, offMin: 20 }
+    ]
+  },
+  ventilation: {
+    enabled: true,
+    defaultCycle: { onSec: 60, offMin: 15 },
+    windows: [
+      { name: "Horas de mayor calor", start: "11:00", end: "18:00", onSec: 60, offMin: 15 },
+      { name: "Noche", start: "18:00", end: "11:00", onSec: 45, offMin: 25 }
+    ]
+  }
+};
+
+function setSelectBoolean(el, value) {
+  if (el) el.value = value === false ? "false" : "true";
+}
+
+function readSelectBoolean(el) {
+  return el?.value === "true";
+}
+
+function setInputValue(el, value) {
+  if (el) el.value = value ?? "";
+}
+
+function getTimerMode(configMode) {
+  return ["manual", "auto", "timer"].includes(configMode) ? configMode : "manual";
+}
+
+function updateTimerVisibility(mode) {
+  const visible = mode === "timer" || els.modeSelect?.value === "timer";
+  if (els.timerConfigSection) els.timerConfigSection.hidden = !visible;
+}
+
+function updateTimerMutualNote() {
+  if (els.timerMutualNote) els.timerMutualNote.hidden = els.timerMutualExclusion?.value !== "true";
+}
+
+function hydrateTimerForm(timer = {}) {
+  const merged = {
+    ...timerDefaults,
+    ...timer,
+    humidifier: {
+      ...timerDefaults.humidifier,
+      ...(timer.humidifier || {}),
+      defaultCycle: { ...timerDefaults.humidifier.defaultCycle, ...((timer.humidifier || {}).defaultCycle || {}) },
+      windows: (timer.humidifier || {}).windows || timerDefaults.humidifier.windows
+    },
+    ventilation: {
+      ...timerDefaults.ventilation,
+      ...(timer.ventilation || {}),
+      defaultCycle: { ...timerDefaults.ventilation.defaultCycle, ...((timer.ventilation || {}).defaultCycle || {}) },
+      windows: (timer.ventilation || {}).windows || timerDefaults.ventilation.windows
+    }
+  };
+  const humidifierDay = merged.humidifier.windows?.[0] || timerDefaults.humidifier.windows[0];
+  const humidifierNight = merged.humidifier.windows?.[1] || timerDefaults.humidifier.windows[1];
+  const ventilationDay = merged.ventilation.windows?.[0] || timerDefaults.ventilation.windows[0];
+  const ventilationNight = merged.ventilation.windows?.[1] || timerDefaults.ventilation.windows[1];
+
+  setSelectBoolean(els.timerEnabled, merged.enabled);
+  setInputValue(els.timerMode, merged.mode === "cycle" ? "cycle" : "schedule");
+  setInputValue(els.timerTimezone, merged.timezone || timerDefaults.timezone);
+  setSelectBoolean(els.timerMutualExclusion, merged.mutualExclusion);
+  setInputValue(els.timerDelayBetweenActuatorsSec, merged.delayBetweenActuatorsSec);
+  setSelectBoolean(els.timerHumidifierEnabled, merged.humidifier.enabled);
+  setInputValue(els.timerHumidifierDefaultOnSec, merged.humidifier.defaultCycle.onSec);
+  setInputValue(els.timerHumidifierDefaultOffMin, merged.humidifier.defaultCycle.offMin);
+  setInputValue(els.timerHumidifierDayStart, humidifierDay.start);
+  setInputValue(els.timerHumidifierDayEnd, humidifierDay.end);
+  setInputValue(els.timerHumidifierDayOnSec, humidifierDay.onSec);
+  setInputValue(els.timerHumidifierDayOffMin, humidifierDay.offMin);
+  setInputValue(els.timerHumidifierNightOnSec, humidifierNight.onSec);
+  setInputValue(els.timerHumidifierNightOffMin, humidifierNight.offMin);
+  setSelectBoolean(els.timerVentilationEnabled, merged.ventilation.enabled);
+  setInputValue(els.timerVentilationDefaultOnSec, merged.ventilation.defaultCycle.onSec);
+  setInputValue(els.timerVentilationDefaultOffMin, merged.ventilation.defaultCycle.offMin);
+  setInputValue(els.timerVentilationDayStart, ventilationDay.start);
+  setInputValue(els.timerVentilationDayEnd, ventilationDay.end);
+  setInputValue(els.timerVentilationDayOnSec, ventilationDay.onSec);
+  setInputValue(els.timerVentilationDayOffMin, ventilationDay.offMin);
+  setInputValue(els.timerVentilationNightOnSec, ventilationNight.onSec);
+  setInputValue(els.timerVentilationNightOffMin, ventilationNight.offMin);
+  updateTimerMutualNote();
+}
+
+function readTimerNumber(id, min, max, label) {
+  const value = toNumberOrNull(els[id]?.value);
+  if (value === null || value < min || value > max) {
+    throw new Error(`${label} debe estar entre ${min} y ${max}.`);
+  }
+  return value;
+}
+
+function readTimerTime(id, label) {
+  const value = (els[id]?.value || "").trim();
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+    throw new Error(`${label} debe tener formato HH:MM.`);
+  }
+  return value;
+}
+
+function buildTimerPayload() {
+  const humidifierDayStart = readTimerTime("timerHumidifierDayStart", "Franja día/calor inicio humidificador");
+  const humidifierDayEnd = readTimerTime("timerHumidifierDayEnd", "Franja día/calor fin humidificador");
+  const ventilationDayStart = readTimerTime("timerVentilationDayStart", "Franja día/calor inicio ventilación");
+  const ventilationDayEnd = readTimerTime("timerVentilationDayEnd", "Franja día/calor fin ventilación");
+  return {
+    enabled: readSelectBoolean(els.timerEnabled),
+    mode: els.timerMode?.value === "cycle" ? "cycle" : "schedule",
+    timezone: (els.timerTimezone?.value || timerDefaults.timezone).trim() || timerDefaults.timezone,
+    mutualExclusion: readSelectBoolean(els.timerMutualExclusion),
+    delayBetweenActuatorsSec: readTimerNumber("timerDelayBetweenActuatorsSec", 0, 600, "Pausa entre actuadores"),
+    fallbackIfSensorsInvalid: true,
+    humidifier: {
+      enabled: readSelectBoolean(els.timerHumidifierEnabled),
+      defaultCycle: {
+        onSec: readTimerNumber("timerHumidifierDefaultOnSec", 5, 600, "ON humidificador"),
+        offMin: readTimerNumber("timerHumidifierDefaultOffMin", 1, 240, "OFF humidificador")
+      },
+      windows: [
+        {
+          name: "Horas de mayor calor",
+          start: humidifierDayStart,
+          end: humidifierDayEnd,
+          onSec: readTimerNumber("timerHumidifierDayOnSec", 5, 600, "ON día/calor humidificador"),
+          offMin: readTimerNumber("timerHumidifierDayOffMin", 1, 240, "OFF día/calor humidificador")
+        },
+        {
+          name: "Noche",
+          start: humidifierDayEnd,
+          end: humidifierDayStart,
+          onSec: readTimerNumber("timerHumidifierNightOnSec", 5, 600, "ON noche humidificador"),
+          offMin: readTimerNumber("timerHumidifierNightOffMin", 1, 240, "OFF noche humidificador")
+        }
+      ]
+    },
+    ventilation: {
+      enabled: readSelectBoolean(els.timerVentilationEnabled),
+      defaultCycle: {
+        onSec: readTimerNumber("timerVentilationDefaultOnSec", 5, 600, "ON ventilación"),
+        offMin: readTimerNumber("timerVentilationDefaultOffMin", 1, 240, "OFF ventilación")
+      },
+      windows: [
+        {
+          name: "Horas de mayor calor",
+          start: ventilationDayStart,
+          end: ventilationDayEnd,
+          onSec: readTimerNumber("timerVentilationDayOnSec", 5, 600, "ON día/calor ventilación"),
+          offMin: readTimerNumber("timerVentilationDayOffMin", 1, 240, "OFF día/calor ventilación")
+        },
+        {
+          name: "Noche",
+          start: ventilationDayEnd,
+          end: ventilationDayStart,
+          onSec: readTimerNumber("timerVentilationNightOnSec", 5, 600, "ON noche ventilación"),
+          offMin: readTimerNumber("timerVentilationNightOffMin", 1, 240, "OFF noche ventilación")
+        }
+      ]
+    },
+    updatedAtWeb: new Date().toISOString(),
+    updatedFrom: "dashboard_timer_config"
+  };
+}
+
+async function saveTimerConfig() {
+  try {
+    const payload = buildTimerPayload();
+    const response = await fetch(buildUrl(timerConfigPath), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    diag.timerPatchStatus = `HTTP ${response.status}`;
+    diag.lastPatchStatus = `timer HTTP ${response.status}`;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    els.timerStatus.textContent = "Configuración timer guardada correctamente";
+    diag.timerConfigured = payload.enabled ? "Sí" : "No";
+    diag.timerUpdatedAt = payload.updatedAtWeb;
+    updateDiagnostics();
+    await fetchConfig();
+  } catch (error) {
+    console.error("Error guardando timer:", error);
+    diag.timerPatchStatus = "Error";
+    els.timerStatus.textContent = error.message || "Error guardando configuración timer";
+    updateDiagnostics();
+  }
+}
+
 const setpointFields = ["co2Min","co2Max","humMin","humMax","tempMin","tempMax","tempCritical","minHumidifierOnSec","minHumidifierOffSec","minVentilationOnSec","minVentilationOffSec","delayAfterVentilationSec","mutualExclusion","crop"];
 
 function setManualControlsEnabled(enabled) {
@@ -716,7 +955,8 @@ function setManualControlsEnabled(enabled) {
     button.disabled = !enabled;
     button.classList.toggle("btn-disabled", !enabled);
   });
-  els.manualControlHint.textContent = enabled ? "" : "Modo automático activo: los relés manuales están deshabilitados.";
+  const selectedMode = els.modeSelect?.value || (state.config || {}).mode;
+  els.manualControlHint.textContent = enabled ? "" : `${selectedMode === "timer" ? "Modo timer" : "Modo automático"} activo: los relés manuales están deshabilitados.`;
 }
 
 function renderAutomaticDecision() {
@@ -726,9 +966,13 @@ function renderAutomaticDecision() {
     els.autoDecisionStatus.textContent = "Esperando datos suficientes.";
     return;
   }
-  const mode = config.mode === "auto" ? "auto" : "manual";
+  const mode = getTimerMode(config.mode);
   if (mode === "manual") {
     els.autoDecisionStatus.textContent = "Modo manual: los relés se controlan desde la web.";
+    return;
+  }
+  if (mode === "timer") {
+    els.autoDecisionStatus.textContent = "Modo timer: la web guarda ciclos y franjas para firmware compatible.";
     return;
   }
   const co2 = toNumberOrNull(latest.co2);
@@ -780,11 +1024,16 @@ function renderConfig(config) {
     els.setpointsStatus.textContent = "Advertencia: no se pudo cargar config.json";
     return;
   }
-  const mode = config.mode === "auto" ? "auto" : "manual";
+  const mode = getTimerMode(config.mode);
   els.currentMode.value = mode;
   els.modeSelect.value = mode;
   els.modeStatus.textContent = `Modo actual: ${mode}`;
   setManualControlsEnabled(mode === "manual");
+  hydrateTimerForm(config.timer || timerDefaults);
+  updateTimerVisibility(mode);
+  diag.timerConfigured = mode === "timer" ? "Sí" : "No";
+  diag.timerUpdatedAt = config.timer?.updatedAtWeb || "--";
+  updateDiagnostics();
   setpointFields.forEach((f) => {
     if (!els[f]) return;
     if (f === "mutualExclusion") {
@@ -811,10 +1060,10 @@ async function fetchConfig() {
 }
 
 async function applyMode() {
-  const mode = els.modeSelect.value === "auto" ? "auto" : "manual";
-  const now = Date.now();
+  const mode = getTimerMode(els.modeSelect.value);
+  const updatedAtWeb = mode === "timer" ? new Date().toISOString() : Date.now();
   try {
-    const configPayload = { mode, updatedAtWeb: now, updatedFrom: "dashboard_mode" };
+    const configPayload = { mode, updatedAtWeb, updatedFrom: mode === "timer" ? "dashboard_mode_timer" : "dashboard_mode" };
     const commandsPayload = { modo: mode };
     const [r1, r2] = await Promise.all([
       fetch(buildUrl(configPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(configPayload) }),
@@ -825,7 +1074,7 @@ async function applyMode() {
     els.modeStatus.textContent = "Modo aplicado correctamente";
     updateDiagnostics();
     await fetchConfig();
-fetchAndRenderCharts();
+    fetchAndRenderCharts();
   } catch (error) {
     console.error("Error aplicando modo:", error);
     els.modeStatus.textContent = "Error al aplicar modo";
@@ -846,7 +1095,7 @@ async function saveSetpoints() {
     els.setpointsStatus.textContent = "SETs guardados correctamente";
     updateDiagnostics();
     await fetchConfig();
-fetchAndRenderCharts();
+    fetchAndRenderCharts();
   } catch (error) {
     console.error("Error guardando setpoints:", error);
     els.setpointsStatus.textContent = "Error guardando SETs";
@@ -869,6 +1118,9 @@ els.resetCo2.addEventListener("click", () => resetSensorCalibration("co2"));
 els.enableCalibration.addEventListener("click", enableCalibration);
 els.disableCalibration.addEventListener("click", disableCalibration);
 els.applyMode.addEventListener("click", applyMode);
+els.modeSelect.addEventListener("change", () => updateTimerVisibility(getTimerMode(els.modeSelect.value)));
+els.timerMutualExclusion?.addEventListener("change", updateTimerMutualNote);
+els.saveTimerConfig?.addEventListener("click", saveTimerConfig);
 els.saveSetpoints.addEventListener("click", saveSetpoints);
 els.refreshCharts?.addEventListener("click", fetchAndRenderCharts);
 els.chartRangeSelect?.addEventListener("change", fetchAndRenderCharts);

@@ -100,14 +100,118 @@
             <select id="modeSelect">
               <option value="manual">Manual</option>
               <option value="auto">Automático</option>
+              <option value="timer">Timer</option>
             </select>
           </label>
         </div>
-        <p class="muted mode-help"><strong>Manual:</strong> los relés se controlan desde la web · <strong>Automático:</strong> el ESP32 toma decisiones según SETs.</p>
+        <p class="muted mode-help"><strong>Manual:</strong> los relés se controlan desde la web · <strong>Automático:</strong> el ESP32 toma decisiones según SETs · <strong>Timer:</strong> ciclos y franjas horarias guardadas en Firebase.</p>
         <div class="download-grid">
           <button id="applyMode" class="btn btn-secondary">Aplicar modo</button>
         </div>
         <p id="manualControlHint" class="muted"></p>
+      </section>
+
+
+
+      <section id="timerConfigSection" class="card section-block timer-config-section" hidden>
+        <h3 class="section-title">Configuración de modo timer</h3>
+        <p class="muted">El modo timer permite accionar humidificador y ventilación por ciclos de tiempo. Es útil como respaldo cuando un sensor falla o cuando se desea trabajar por horarios.</p>
+        <p id="timerStatus" class="muted">Configuración timer lista para editar.</p>
+
+        <article class="timer-info-card">
+          <strong>Importante:</strong> el modo timer requiere firmware compatible. Si el firmware actual no interpreta mode: timer, la configuración quedará guardada en Firebase pero el ESP32 no la ejecutará todavía.
+        </article>
+
+        <div class="timer-grid timer-general-grid">
+          <label>Activar timer
+            <select id="timerEnabled"><option value="true">true</option><option value="false">false</option></select>
+          </label>
+          <label>Tipo de timer
+            <select id="timerMode"><option value="cycle">Ciclos fijos</option><option value="schedule" selected>Franjas horarias</option></select>
+          </label>
+          <label>Zona horaria
+            <input id="timerTimezone" type="text" value="America/Argentina/Tucuman" />
+          </label>
+          <label>Exclusión mutua
+            <select id="timerMutualExclusion"><option value="true">true</option><option value="false">false</option></select>
+          </label>
+          <label>Pausa entre actuadores (segundos)
+            <input id="timerDelayBetweenActuatorsSec" type="number" min="0" max="600" step="1" value="30" />
+          </label>
+        </div>
+        <p id="timerMutualNote" class="timer-note">Humidificador y ventilación no funcionarán al mismo tiempo.</p>
+
+        <div class="timer-cards-grid">
+          <article class="timer-actuator-card">
+            <h4>Humidificador</h4>
+            <div class="timer-grid">
+              <label>Timer humidificador activo
+                <select id="timerHumidifierEnabled"><option value="true">true</option><option value="false">false</option></select>
+              </label>
+              <label>ON durante segundos
+                <input id="timerHumidifierDefaultOnSec" type="number" min="5" max="600" step="1" value="45" />
+              </label>
+              <label>OFF durante minutos
+                <input id="timerHumidifierDefaultOffMin" type="number" min="1" max="240" step="1" value="12" />
+              </label>
+              <label>Franja día/calor inicio
+                <input id="timerHumidifierDayStart" type="time" value="11:00" />
+              </label>
+              <label>Franja día/calor fin
+                <input id="timerHumidifierDayEnd" type="time" value="18:00" />
+              </label>
+              <label>ON día/calor segundos
+                <input id="timerHumidifierDayOnSec" type="number" min="5" max="600" step="1" value="45" />
+              </label>
+              <label>OFF día/calor minutos
+                <input id="timerHumidifierDayOffMin" type="number" min="1" max="240" step="1" value="10" />
+              </label>
+              <label>ON noche segundos
+                <input id="timerHumidifierNightOnSec" type="number" min="5" max="600" step="1" value="30" />
+              </label>
+              <label>OFF noche minutos
+                <input id="timerHumidifierNightOffMin" type="number" min="1" max="240" step="1" value="20" />
+              </label>
+            </div>
+          </article>
+
+          <article class="timer-actuator-card">
+            <h4>Ventilación</h4>
+            <div class="timer-grid">
+              <label>Timer ventilación activo
+                <select id="timerVentilationEnabled"><option value="true">true</option><option value="false">false</option></select>
+              </label>
+              <label>ON durante segundos
+                <input id="timerVentilationDefaultOnSec" type="number" min="5" max="600" step="1" value="60" />
+              </label>
+              <label>OFF durante minutos
+                <input id="timerVentilationDefaultOffMin" type="number" min="1" max="240" step="1" value="15" />
+              </label>
+              <label>Franja día/calor inicio
+                <input id="timerVentilationDayStart" type="time" value="11:00" />
+              </label>
+              <label>Franja día/calor fin
+                <input id="timerVentilationDayEnd" type="time" value="18:00" />
+              </label>
+              <label>ON día/calor segundos
+                <input id="timerVentilationDayOnSec" type="number" min="5" max="600" step="1" value="60" />
+              </label>
+              <label>OFF día/calor minutos
+                <input id="timerVentilationDayOffMin" type="number" min="1" max="240" step="1" value="15" />
+              </label>
+              <label>ON noche segundos
+                <input id="timerVentilationNightOnSec" type="number" min="5" max="600" step="1" value="45" />
+              </label>
+              <label>OFF noche minutos
+                <input id="timerVentilationNightOffMin" type="number" min="1" max="240" step="1" value="25" />
+              </label>
+            </div>
+          </article>
+        </div>
+
+        <div class="download-grid timer-actions">
+          <button id="saveTimerConfig" class="btn btn-on">Guardar configuración timer</button>
+        </div>
       </section>
 
       <section class="card section-block">
@@ -159,6 +263,7 @@
         <ul class="logic-list">
           <li>Manual: control directo de relés desde la web.</li>
           <li>Automático: el ESP32 decide según SETs.</li>
+          <li>Timer: configuración web de ciclos y franjas horarias guardada en Firebase para firmware compatible.</li>
           <li>CO2 alto activa ventilación.</li>
           <li>Humedad baja activa humidificador.</li>
           <li>Humidificador y ventilación no funcionan juntos si exclusión mutua está activada.</li>
@@ -293,6 +398,9 @@
           <p><strong>Último estado GET:</strong> <span id="diagGetStatus">--</span></p>
           <p><strong>Último estado PATCH:</strong> <span id="diagPatchStatus">--</span></p>
           <p><strong>Último PATCH calibración:</strong> <span id="diagCalibrationPatch">--</span></p>
+          <p><strong>Modo timer configurado:</strong> <span id="diagTimerConfigured">--</span></p>
+          <p><strong>Última actualización timer:</strong> <span id="diagTimerUpdatedAt">--</span></p>
+          <p><strong>Estado PATCH timer:</strong> <span id="diagTimerPatch">--</span></p>
           <p><strong>Último sensor calibrado:</strong> <span id="diagCalibrationSensor">--</span></p>
           <p><strong>Última calibración web:</strong> <span id="diagCalibrationAt">--</span></p>
           <p><strong>Última carga de gráficos:</strong> <span id="diagChartsLastLoad">--</span></p>
