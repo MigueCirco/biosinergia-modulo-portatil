@@ -31,6 +31,15 @@ const els = {
   humedadAmbiente: document.getElementById("humedadAmbiente"),
   humedadSuelo: document.getElementById("humedadSuelo"),
   co2: document.getElementById("co2"),
+  temperatureQualityCard: document.getElementById("temperatureQualityCard"),
+  temperatureQualityState: document.getElementById("temperatureQualityState"),
+  temperatureQualityDetail: document.getElementById("temperatureQualityDetail"),
+  humidityQualityCard: document.getElementById("humidityQualityCard"),
+  humidityQualityState: document.getElementById("humidityQualityState"),
+  humidityQualityDetail: document.getElementById("humidityQualityDetail"),
+  co2QualityCard: document.getElementById("co2QualityCard"),
+  co2QualityState: document.getElementById("co2QualityState"),
+  co2QualityDetail: document.getElementById("co2QualityDetail"),
   distanciaCm: document.getElementById("distanciaCm"),
   uptime: document.getElementById("uptime"),
   relay1State: document.getElementById("relay1State"),
@@ -76,6 +85,8 @@ const els = {
   temperaturePreview: document.getElementById("temperaturePreview"),
   humidityPreview: document.getElementById("humidityPreview"),
   co2Preview: document.getElementById("co2Preview"),
+  humidityCalibrationWarning: document.getElementById("humidityCalibrationWarning"),
+  co2CalibrationWarning: document.getElementById("co2CalibrationWarning"),
   temperatureCalibrationError: document.getElementById("temperatureCalibrationError"),
   humidityCalibrationError: document.getElementById("humidityCalibrationError"),
   co2CalibrationError: document.getElementById("co2CalibrationError"),
@@ -103,6 +114,7 @@ const els = {
   mutualExclusion: document.getElementById("mutualExclusion"),
   crop: document.getElementById("crop"),
   chartRangeSelect: document.getElementById("chartRangeSelect"),
+  excludeSuspectData: document.getElementById("excludeSuspectData"),
   refreshCharts: document.getElementById("refreshCharts"),
   chartsStatus: document.getElementById("chartsStatus"),
   chartsSummary: document.getElementById("chartsSummary"),
@@ -163,7 +175,8 @@ const state = {
   latest: null,
   calibration: null,
   pendingCalibrationBySensor: {},
-  config: null
+  config: null,
+  recentHistory: []
 };
 
 function buildUrl(path) {
@@ -201,6 +214,13 @@ function updateCalibrationView() {
   els.temperatureOffsetCurrent.textContent = formatValue(calibration.temperatureOffset ?? 0);
   els.humidityOffsetCurrent.textContent = formatValue(calibration.humidityOffset ?? 0);
   els.co2OffsetCurrent.textContent = formatValue(calibration.co2Offset ?? 0);
+
+  const humidityOffset = toNumberOrNull(calibration.humidityOffset) ?? 0;
+  const co2Offset = toNumberOrNull(calibration.co2Offset) ?? 0;
+  setCalibrationWarning(els.humidityCalibrationWarning, Math.abs(humidityOffset) > 10 ? "Offset de humedad alto. Recomendado resetear si se cambió el sensor." : "");
+  setCalibrationWarning(els.co2CalibrationWarning, Math.abs(co2Offset) > 500 ? "Offset CO2 alto. Verificar con instrumento patrón." : "");
+  updateDataQualityView();
+
   if (!hasCalibration) {
     els.calibrationStatus.textContent = "Calibración no configurada";
   } else {
@@ -209,6 +229,98 @@ function updateCalibrationView() {
   }
   const mode = (state.latest || {}).mode ?? (state.config || {}).mode;
   els.calibrationModeHint.textContent = mode === "manual" ? "" : "Para calibrar, se recomienda dejar el sistema en modo manual y esperar estabilización de las lecturas.";
+}
+
+
+function setCalibrationWarning(el, message) {
+  if (!el) return;
+  el.textContent = message || "";
+  el.hidden = !message;
+}
+
+function isHumiditySaturated(record) {
+  const humidity = toNumberOrNull(record?.humedadAmbiente);
+  const humidityRaw = toNumberOrNull(record?.humedadAmbienteRaw ?? record?.humedadRaw ?? record?.humidityRaw);
+  return (humidity !== null && humidity >= 98) || (humidityRaw !== null && humidityRaw >= 98);
+}
+
+function isCo2Invalid(value) {
+  const co2 = toNumberOrNull(value);
+  return co2 === null || co2 === 0 || co2 < 300 || co2 > 10000;
+}
+
+function hasFrozenValue(records, getter, minSamples = 5, tolerance = 0.05) {
+  const values = records.map(getter).filter((value) => value !== null);
+  if (values.length < minSamples) return false;
+  const sample = values.slice(0, minSamples);
+  return Math.max(...sample) - Math.min(...sample) <= tolerance;
+}
+
+function getPreviousNumeric(records, getter) {
+  const values = records.map(getter).filter((value) => value !== null);
+  return values.length >= 2 ? values[1] : null;
+}
+
+function buildQuality(status, level, detail) {
+  return { status, level, detail };
+}
+
+function assessTemperatureQuality(latest, records) {
+  const temp = toNumberOrNull(latest?.temperatura);
+  if (temp === null) return buildQuality("Sin lectura", "missing", "Temperatura no numérica o ausente en latest.");
+  const previous = getPreviousNumeric(records, (record) => toNumberOrNull(record.temperatura));
+  if (previous !== null && Math.abs(temp - previous) >= 5) {
+    return buildQuality("Lectura sospechosa", "suspect", `Salto extremo de ${Math.abs(temp - previous).toFixed(1)} °C entre mediciones.`);
+  }
+  return buildQuality("Lectura estable", "stable", "Temperatura numérica y sin saltos extremos recientes.");
+}
+
+function assessHumidityQuality(latest, records, calibration) {
+  const humidity = toNumberOrNull(latest?.humedadAmbiente);
+  const humidityRaw = toNumberOrNull(latest?.humedadAmbienteRaw ?? latest?.humedadRaw ?? latest?.humidityRaw);
+  const humidityOffset = toNumberOrNull(calibration?.humidityOffset) ?? 0;
+  if (humidity === null && humidityRaw === null) return buildQuality("Sin lectura", "missing", "No hay humedad calibrada ni raw disponible.");
+  if (isHumiditySaturated(latest)) return buildQuality("Posible saturación", "invalid", "Humedad raw o calibrada ≥ 98%; compatible con sensor mojado/saturado.");
+  const frozen = hasFrozenValue(records, (record) => toNumberOrNull(record.humedadAmbiente), 5, 0.05);
+  if (frozen) return buildQuality("Lectura congelada", "suspect", "La humedad permanece fija durante varias mediciones recientes.");
+  if (Math.abs(humidityOffset) > 10) return buildQuality("Requiere calibración", "calibration", "Offset de humedad alto; si se cambió el sensor, conviene resetear y recalibrar.");
+  if (humidityOffset !== 0) return buildQuality("Lectura estable", "stable", "Si se cambió de DHT22 a DHT11, revisar o resetear el offset antes de comparar históricos.");
+  return buildQuality("Lectura estable", "stable", "Humedad dentro de criterios visuales de confianza.");
+}
+
+function assessCo2Quality(latest, records, calibration) {
+  const co2 = toNumberOrNull(latest?.co2);
+  const co2Raw = toNumberOrNull(latest?.co2Raw);
+  const co2Offset = toNumberOrNull(calibration?.co2Offset) ?? 0;
+  if (isCo2Invalid(co2)) return buildQuality("Lectura inválida", "invalid", "CO2 es 0, nulo, menor a 300 ppm o mayor a 10000 ppm.");
+  const previous = getPreviousNumeric(records, (record) => toNumberOrNull(record.co2));
+  if (previous !== null) {
+    const jump = Math.abs(co2 - previous);
+    if (jump >= 1000 || jump >= Math.max(500, previous * 0.5)) {
+      return buildQuality("Posible falso contacto", "suspect", `Revisar conexión: salto brusco de ${jump.toFixed(0)} ppm entre mediciones.`);
+    }
+  }
+  if ((co2Raw !== null && Math.abs(co2 - co2Raw) > 500) || Math.abs(co2Offset) > 500) {
+    return buildQuality("Requiere calibración", "calibration", "Offset alto: verificar con instrumento patrón.");
+  }
+  return buildQuality("Lectura estable", "stable", "CO2 dentro de rango esperado y sin saltos bruscos recientes.");
+}
+
+function renderQualityCard(cardEl, stateEl, detailEl, quality) {
+  if (!cardEl || !stateEl || !detailEl) return;
+  cardEl.classList.remove("quality-stable", "quality-missing", "quality-suspect", "quality-invalid", "quality-calibration");
+  cardEl.classList.add(`quality-${quality.level}`);
+  stateEl.textContent = quality.status;
+  detailEl.textContent = quality.detail;
+}
+
+function updateDataQualityView() {
+  const latest = state.latest || {};
+  const records = state.recentHistory.length ? state.recentHistory : [latest];
+  const calibration = state.calibration || {};
+  renderQualityCard(els.temperatureQualityCard, els.temperatureQualityState, els.temperatureQualityDetail, assessTemperatureQuality(latest, records));
+  renderQualityCard(els.humidityQualityCard, els.humidityQualityState, els.humidityQualityDetail, assessHumidityQuality(latest, records, calibration));
+  renderQualityCard(els.co2QualityCard, els.co2QualityState, els.co2QualityDetail, assessCo2Quality(latest, records, calibration));
 }
 
 function jsonToCsv(list) {
@@ -239,7 +351,7 @@ function downloadContent(filename, content, mime) {
 }
 
 async function fetchCollection(path) {
-  const response = await fetch(buildUrl(path));
+  const response = await fetch(buildUrl(path), { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return await response.json();
 }
@@ -396,6 +508,7 @@ function renderData(data) {
   diag.lastReadingTimestamp = data.timestamp ?? null;
   els.lastReading.textContent = `Última medición del ESP32: ${formatTimestamp(data.timestamp)}`;
   updateReadingAge();
+  updateDataQualityView();
   renderAutomaticDecision();
 }
 
@@ -403,7 +516,7 @@ async function fetchLatest() {
   const url = buildUrl(latestPath);
   diag.lastUrl = url;
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: "no-store" });
     diag.lastGetStatus = `HTTP ${response.status}`;
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -539,7 +652,9 @@ function normalizeHistoryRecords(data) {
       date: timestamp ? new Date(normalizeTimestamp(timestamp)) : null,
       temperatura: toNumberOrNull(rec.temperatura),
       humedadAmbiente: toNumberOrNull(rec.humedadAmbiente),
+      humedadAmbienteRaw: toNumberOrNull(rec.humedadAmbienteRaw ?? rec.humedadRaw ?? rec.humidityRaw),
       co2: toNumberOrNull(rec.co2),
+      co2Raw: toNumberOrNull(rec.co2Raw),
       relay1: rec.relay1 === true ? 1 : rec.relay1 === false ? 0 : null,
       relay2: rec.relay2 === true ? 1 : rec.relay2 === false ? 0 : null,
       mode: rec.mode ?? rec.modo ?? null,
@@ -571,6 +686,25 @@ function buildHistoryChartPath(range){
 function summarize(values){ if(!values.length) return null; return values.reduce((a,b)=>a+b,0)/values.length; }
 function pctInRange(values,min,max){ if(!values.length||min===null||max===null) return null; const ok=values.filter(v=>v>=min&&v<=max).length; return (ok*100)/values.length; }
 function setChartsStatus(text,isError=false){ els.chartsStatus.textContent=text; els.chartsStatus.classList.toggle("section-error",isError); }
+function shouldExcludeSuspectData(){ return els.excludeSuspectData?.checked === true; }
+function prepareChartRecords(records, excludeSuspect) {
+  let discarded = 0;
+  const prepared = records.map((record) => {
+    const copy = { ...record };
+    let discardedThisRecord = false;
+    if (excludeSuspect && isHumiditySaturated(record)) {
+      copy.humedadAmbiente = null;
+      discardedThisRecord = true;
+    }
+    if (excludeSuspect && isCo2Invalid(record.co2)) {
+      copy.co2 = null;
+      discardedThisRecord = true;
+    }
+    if (discardedThisRecord) discarded += 1;
+    return copy;
+  });
+  return { prepared, discarded };
+}
 
 async function fetchAndRenderCharts(){
   const range = getChartRangeSelection();
@@ -583,26 +717,30 @@ async function fetchAndRenderCharts(){
     if (range === "24h") { const cutoff = Date.now() - 24*60*60*1000; records = records.filter(r=>r.date && r.date.getTime()>=cutoff); }
     if (!records.length) { setChartsStatus("No hay datos suficientes para graficar."); destroyCharts(); diag.chartsCount = "0"; diag.chartsState = "Sin datos"; diag.chartsLastLoad = formatTimestamp(Date.now()); updateDiagnostics(); return; }
     const { sortedRecords, chartLabels } = buildSharedTimeAxis(records);
-    const tempVals = sortedRecords.filter(r=>r.temperatura!==null).map(r=>r.temperatura);
-    const humVals = sortedRecords.filter(r=>r.humedadAmbiente!==null).map(r=>r.humedadAmbiente);
-    const co2Vals = sortedRecords.filter(r=>r.co2!==null).map(r=>r.co2);
+    const excludeSuspect = shouldExcludeSuspectData();
+    const { prepared: chartRecords, discarded } = prepareChartRecords(sortedRecords, excludeSuspect);
+    const tempVals = chartRecords.filter(r=>r.temperatura!==null).map(r=>r.temperatura);
+    const humVals = chartRecords.filter(r=>r.humedadAmbiente!==null).map(r=>r.humedadAmbiente);
+    const co2Vals = chartRecords.filter(r=>r.co2!==null).map(r=>r.co2);
     const cfg=state.config||{};
     const tempRange = { yMin: toNumberOrNull(cfg.tempMin), yMax: toNumberOrNull(cfg.tempMax) };
     const humRange = { yMin: toNumberOrNull(cfg.humMin), yMax: toNumberOrNull(cfg.humMax) };
     const co2Range = { yMin: toNumberOrNull(cfg.co2Min), yMax: toNumberOrNull(cfg.co2Max) };
     destroyCharts();
-    chartInstances.temp = createLineChart(els.tempChart,"Temperatura (°C)",chartLabels,sortedRecords.map(r=>r.temperatura),"#2ca76b",false,tempRange);
-    chartInstances.hum = createLineChart(els.humChart,"Humedad (%)",chartLabels,sortedRecords.map(r=>r.humedadAmbiente),"#2e8b9f",false,humRange);
+    chartInstances.temp = createLineChart(els.tempChart,"Temperatura (°C)",chartLabels,chartRecords.map(r=>r.temperatura),"#2ca76b",false,tempRange);
+    chartInstances.hum = createLineChart(els.humChart,"Humedad (%)",chartLabels,chartRecords.map(r=>r.humedadAmbiente),"#2e8b9f",false,humRange);
     chartInstances.humidifier = createLineChart(els.humidifierChart,"Humidificador",chartLabels,sortedRecords.map(r=>r.relay1),"#3b82f6",true,null,{min:0,max:1,ticks:{stepSize:1,callback:(v)=>v===1?"ON":"OFF"}});
     chartInstances.ventilation = createLineChart(els.ventilationChart,"Ventilación",chartLabels,sortedRecords.map(r=>r.relay2),"#f97316",true,null,{min:0,max:1,ticks:{stepSize:1,callback:(v)=>v===1?"ON":"OFF"}});
-    chartInstances.co2 = createLineChart(els.co2Chart,"CO2 (ppm)",chartLabels,sortedRecords.map(r=>r.co2),"#0f766e",false,co2Range);
+    chartInstances.co2 = createLineChart(els.co2Chart,"CO2 (ppm)",chartLabels,chartRecords.map(r=>r.co2),"#0f766e",false,co2Range);
     els.tempReference.textContent = `Rango SET activo: ${formatValue(cfg.tempMin)} – ${formatValue(cfg.tempMax)} °C`;
     els.humReference.textContent = `Rango SET activo: ${formatValue(cfg.humMin)} – ${formatValue(cfg.humMax)} %`;
     els.co2Reference.textContent = `Rango SET activo: ${formatValue(cfg.co2Min)} – ${formatValue(cfg.co2Max)} ppm`;
     const humIn = pctInRange(humVals,toNumberOrNull(cfg.humMin),toNumberOrNull(cfg.humMax));
     const co2In = pctInRange(co2Vals,toNumberOrNull(cfg.co2Min),toNumberOrNull(cfg.co2Max));
-    els.chartsSummary.innerHTML = `<p>Promedio temperatura: <strong>${summarize(tempVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio humedad: <strong>${summarize(humVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio CO2: <strong>${summarize(co2Vals)?.toFixed(2) ?? "--"}</strong></p><p>Máximo CO2: <strong>${co2Vals.length ? Math.max(...co2Vals).toFixed(2) : "--"}</strong></p><p>Mediciones: <strong>${sortedRecords.length}</strong></p><p>Humedad en rango: <strong>${humIn===null?"--":humIn.toFixed(1)+"%"}</strong></p><p>CO2 en rango: <strong>${co2In===null?"--":co2In.toFixed(1)+"%"}</strong></p>`;
-    setChartsStatus(`Mostrando ${sortedRecords.length} mediciones para gráficos.`);
+    const validMeasurements = excludeSuspect ? sortedRecords.length - discarded : sortedRecords.length;
+    els.chartsSummary.innerHTML = `<p>Promedio temperatura: <strong>${summarize(tempVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio humedad: <strong>${summarize(humVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio CO2: <strong>${summarize(co2Vals)?.toFixed(2) ?? "--"}</strong></p><p>Máximo CO2: <strong>${co2Vals.length ? Math.max(...co2Vals).toFixed(2) : "--"}</strong></p><p>Mediciones totales: <strong>${sortedRecords.length}</strong></p><p>Mediciones válidas: <strong>${validMeasurements}</strong></p><p>Mediciones descartadas: <strong>${excludeSuspect ? discarded : 0}</strong></p><p>Humedad en rango: <strong>${humIn===null?"--":humIn.toFixed(1)+"%"}</strong></p><p>CO2 en rango: <strong>${co2In===null?"--":co2In.toFixed(1)+"%"}</strong></p>`;
+    const filterText = excludeSuspect ? ` · ${discarded} mediciones con puntos filtrados visualmente` : " · mostrando todos los datos";
+    setChartsStatus(`Mostrando ${sortedRecords.length} mediciones para gráficos${filterText}.`);
     diag.chartsLastLoad = formatTimestamp(Date.now()); diag.chartsCount = String(sortedRecords.length); diag.chartsState = "OK"; updateDiagnostics();
   } catch (error) { console.error("Error charts:", error); setChartsStatus("Error al cargar historial.", true); diag.chartsState = "Error"; updateDiagnostics(); }
 }
@@ -620,10 +758,12 @@ async function fetchCalibration() {
 
 async function fetchHistory() {
   try {
-    const response = await fetch(buildUrl(historyPath));
+    const response = await fetch(buildUrl(historyPath), { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const history = await response.json();
     renderHistory(normalizeFirebaseList(history));
+    state.recentHistory = normalizeHistoryRecords(history).slice().reverse();
+    updateDataQualityView();
   } catch (error) {
     console.error("Error history:", error);
     els.historyStatus.textContent = "Error cargando historial";
@@ -634,7 +774,7 @@ async function fetchHistory() {
 
 async function fetchEvents() {
   try {
-    const response = await fetch(buildUrl(eventsPath));
+    const response = await fetch(buildUrl(eventsPath), { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const events = await response.json();
     renderEvents(normalizeFirebaseList(events));
@@ -1124,6 +1264,7 @@ els.saveTimerConfig?.addEventListener("click", saveTimerConfig);
 els.saveSetpoints.addEventListener("click", saveSetpoints);
 els.refreshCharts?.addEventListener("click", fetchAndRenderCharts);
 els.chartRangeSelect?.addEventListener("change", fetchAndRenderCharts);
+els.excludeSuspectData?.addEventListener("change", fetchAndRenderCharts);
 
 document.querySelectorAll("button[data-relay]").forEach((button) => {
   button.addEventListener("click", () => {

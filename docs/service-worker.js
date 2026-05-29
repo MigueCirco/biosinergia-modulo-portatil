@@ -1,4 +1,4 @@
-const CACHE_NAME = "biosinergia-pwa-v1-4-0";
+const CACHE_NAME = "biosinergia-pwa-v1-4-1";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -36,7 +36,8 @@ self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(request.url);
 
   if (requestUrl.hostname.includes("firebaseio.com")) {
-    event.respondWith(fetch(request));
+    const liveRequest = new Request(request, { cache: "no-store" });
+    event.respondWith(fetch(liveRequest));
     return;
   }
 
