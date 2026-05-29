@@ -1,7 +1,11 @@
-const CACHE_NAME = "biosinergia-pwa-v1-4-1";
+const CACHE_NAME = "biosinergia-pwa-v1-5-0";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
+  "./graficos.html",
+  "./calibracion.html",
+  "./configuracion.html",
+  "./admin.html",
   "./style.css",
   "./app.js",
   "./manifest.webmanifest",

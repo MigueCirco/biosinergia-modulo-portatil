@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#166534" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BioSinergia IoT" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="description" content="Dashboard del módulo portátil IoT de BioSinergia" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <title>BioSinergia · Configuración</title>
+  </head>
+  <body data-page="configuracion">
+    <header class="site-header">
+      <div class="brand-wrap">
+        <div class="brand-logo" aria-hidden="true">🌱</div>
+        <div>
+          <h1>BioSinergia</h1>
+          <h2>Módulo Portátil IoT</h2>
+          <p>Monitoreo ambiental y control remoto para cultivos inteligentes.</p>
+        </div>
+      </div>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <a href="index.html" data-nav="home">Inicio</a>
+        <a href="graficos.html" data-nav="graficos">Gráficos</a>
+        <a href="calibracion.html" data-nav="calibracion">Calibración</a>
+        <a href="configuracion.html" data-nav="configuracion">Configuración</a>
+        <a href="admin.html" data-nav="admin">Admin</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="card section-block">
+        <h3 class="section-title">Modo de operación</h3>
+        <p id="modeStatus" class="muted">Cargando configuración...</p>
+        <div class="mode-grid">
+          <label>Modo actual en configuración
+            <input id="currentMode" type="text" readonly value="--" />
+          </label>
+          <label>Seleccionar modo
+            <select id="modeSelect">
+              <option value="manual">Manual</option>
+              <option value="auto">Automático</option>
+              <option value="timer">Timer</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted mode-help"><strong>Manual:</strong> los relés se controlan desde la web · <strong>Automático:</strong> el ESP32 toma decisiones según SETs · <strong>Timer:</strong> ciclos y franjas horarias guardadas en Firebase.</p>
+        <div class="download-grid">
+          <button id="applyMode" class="btn btn-secondary">Aplicar modo</button>
+        </div>
+        <p id="manualControlHint" class="muted"></p>
+      </section>
+
+      <section id="timerConfigSection" class="card section-block timer-config-section" hidden>
+        <h3 class="section-title">Configuración de modo timer</h3>
+        <p class="muted">El modo timer permite accionar humidificador y ventilación por ciclos de tiempo. Es útil como respaldo cuando un sensor falla o cuando se desea trabajar por horarios.</p>
+        <p id="timerStatus" class="muted">Configuración timer lista para editar.</p>
+
+        <article class="timer-info-card">
+          <strong>Importante:</strong> el modo timer requiere firmware compatible. Si el firmware actual no interpreta mode: timer, la configuración quedará guardada en Firebase pero el ESP32 no la ejecutará todavía.
+        </article>
+
+        <div class="timer-grid timer-general-grid">
+          <label>Activar timer
+            <select id="timerEnabled"><option value="true">true</option><option value="false">false</option></select>
+          </label>
+          <label>Tipo de timer
+            <select id="timerMode"><option value="cycle">Ciclos fijos</option><option value="schedule" selected>Franjas horarias</option></select>
+          </label>
+          <label>Zona horaria
+            <input id="timerTimezone" type="text" value="America/Argentina/Tucuman" />
+          </label>
+          <label>Exclusión mutua
+            <select id="timerMutualExclusion"><option value="true">true</option><option value="false">false</option></select>
+          </label>
+          <label>Pausa entre actuadores (segundos)
+            <input id="timerDelayBetweenActuatorsSec" type="number" min="0" max="600" step="1" value="30" />
+          </label>
+        </div>
+        <p id="timerMutualNote" class="timer-note">Humidificador y ventilación no funcionarán al mismo tiempo.</p>
+
+        <div class="timer-cards-grid">
+          <article class="timer-actuator-card">
+            <h4>Humidificador</h4>
+            <div class="timer-grid">
+              <label>Timer humidificador activo
+                <select id="timerHumidifierEnabled"><option value="true">true</option><option value="false">false</option></select>
+              </label>
+              <label>ON durante segundos
+                <input id="timerHumidifierDefaultOnSec" type="number" min="5" max="600" step="1" value="45" />
+              </label>
+              <label>OFF durante minutos
+                <input id="timerHumidifierDefaultOffMin" type="number" min="1" max="240" step="1" value="12" />
+              </label>
+              <label>Franja día/calor inicio
+                <input id="timerHumidifierDayStart" type="time" value="11:00" />
+              </label>
+              <label>Franja día/calor fin
+                <input id="timerHumidifierDayEnd" type="time" value="18:00" />
+              </label>
+              <label>ON día/calor segundos
+                <input id="timerHumidifierDayOnSec" type="number" min="5" max="600" step="1" value="45" />
+              </label>
+              <label>OFF día/calor minutos
+                <input id="timerHumidifierDayOffMin" type="number" min="1" max="240" step="1" value="10" />
+              </label>
+              <label>ON noche segundos
+                <input id="timerHumidifierNightOnSec" type="number" min="5" max="600" step="1" value="30" />
+              </label>
+              <label>OFF noche minutos
+                <input id="timerHumidifierNightOffMin" type="number" min="1" max="240" step="1" value="20" />
+              </label>
+            </div>
+          </article>
+
+          <article class="timer-actuator-card">
+            <h4>Ventilación</h4>
+            <div class="timer-grid">
+              <label>Timer ventilación activo
+                <select id="timerVentilationEnabled"><option value="true">true</option><option value="false">false</option></select>
+              </label>
+              <label>ON durante segundos
+                <input id="timerVentilationDefaultOnSec" type="number" min="5" max="600" step="1" value="60" />
+              </label>
+              <label>OFF durante minutos
+                <input id="timerVentilationDefaultOffMin" type="number" min="1" max="240" step="1" value="15" />
+              </label>
+              <label>Franja día/calor inicio
+                <input id="timerVentilationDayStart" type="time" value="11:00" />
+              </label>
+              <label>Franja día/calor fin
+                <input id="timerVentilationDayEnd" type="time" value="18:00" />
+              </label>
+              <label>ON día/calor segundos
+                <input id="timerVentilationDayOnSec" type="number" min="5" max="600" step="1" value="60" />
+              </label>
+              <label>OFF día/calor minutos
+                <input id="timerVentilationDayOffMin" type="number" min="1" max="240" step="1" value="15" />
+              </label>
+              <label>ON noche segundos
+                <input id="timerVentilationNightOnSec" type="number" min="5" max="600" step="1" value="45" />
+              </label>
+              <label>OFF noche minutos
+                <input id="timerVentilationNightOffMin" type="number" min="1" max="240" step="1" value="25" />
+              </label>
+            </div>
+          </article>
+        </div>
+
+        <div class="download-grid timer-actions">
+          <button id="saveTimerConfig" class="btn btn-on">Guardar configuración timer</button>
+        </div>
+      </section>
+
+      <section class="card section-block">
+        <h3 class="section-title">Configuración automática / SETs</h3>
+        <p id="setpointsStatus" class="muted">Cargando SETs...</p>
+        <div class="setpoint-group">
+          <h4>CO2 / ventilación</h4>
+          <div class="reference-grid">
+            <label>co2Min <input id="co2Min" type="number" step="0.01" /></label>
+            <label>co2Max <input id="co2Max" type="number" step="0.01" /></label>
+            <label>minVentilationOnSec <input id="minVentilationOnSec" type="number" step="1" /></label>
+            <label>minVentilationOffSec <input id="minVentilationOffSec" type="number" step="1" /></label>
+            <label>delayAfterVentilationSec <input id="delayAfterVentilationSec" type="number" step="1" /></label>
+          </div>
+        </div>
+        <div class="setpoint-group">
+          <h4>Humedad / humidificador</h4>
+          <div class="reference-grid">
+            <label>humMin <input id="humMin" type="number" step="0.01" /></label>
+            <label>humMax <input id="humMax" type="number" step="0.01" /></label>
+            <label>minHumidifierOnSec <input id="minHumidifierOnSec" type="number" step="1" /></label>
+            <label>minHumidifierOffSec <input id="minHumidifierOffSec" type="number" step="1" /></label>
+          </div>
+        </div>
+        <div class="setpoint-group">
+          <h4>Temperatura / seguridad</h4>
+          <div class="reference-grid">
+            <label>tempMin <input id="tempMin" type="number" step="0.01" /></label>
+            <label>tempMax <input id="tempMax" type="number" step="0.01" /></label>
+            <label>tempCritical <input id="tempCritical" type="number" step="0.01" /></label>
+          </div>
+        </div>
+        <div class="setpoint-group">
+          <h4>Reglas del sistema</h4>
+          <div class="reference-grid">
+            <label>mutualExclusion
+              <select id="mutualExclusion"><option value="true">true</option><option value="false">false</option></select>
+            </label>
+            <label>crop <input id="crop" type="text" /></label>
+          </div>
+        </div>
+        <div class="download-grid">
+          <button id="saveSetpoints" class="btn btn-on">Guardar SETs</button>
+        </div>
+      </section>
+
+      <section class="card section-block">
+        <h3 class="section-title">Lógica de control</h3>
+        <ul class="logic-list">
+          <li>Manual: control directo de relés desde la web.</li>
+          <li>Automático: el ESP32 decide según SETs.</li>
+          <li>Timer: configuración web de ciclos y franjas horarias guardada en Firebase para firmware compatible.</li>
+          <li>CO2 alto activa ventilación.</li>
+          <li>Humedad baja activa humidificador.</li>
+          <li>Humidificador y ventilación no funcionan juntos si exclusión mutua está activada.</li>
+          <li>Todos los cambios quedan registrados en eventos e historial.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="site-footer">BioSinergia · Tecnología para cultivar con datos</footer>
+    <script src="app.js" defer></script>
+  </body>
+</html>

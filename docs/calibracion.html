@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#166534" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BioSinergia IoT" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="description" content="Dashboard del módulo portátil IoT de BioSinergia" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <title>BioSinergia · Calibración</title>
+  </head>
+  <body data-page="calibracion">
+    <header class="site-header">
+      <div class="brand-wrap">
+        <div class="brand-logo" aria-hidden="true">🌱</div>
+        <div>
+          <h1>BioSinergia</h1>
+          <h2>Módulo Portátil IoT</h2>
+          <p>Monitoreo ambiental y control remoto para cultivos inteligentes.</p>
+        </div>
+      </div>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <a href="index.html" data-nav="home">Inicio</a>
+        <a href="graficos.html" data-nav="graficos">Gráficos</a>
+        <a href="calibracion.html" data-nav="calibracion">Calibración</a>
+        <a href="configuracion.html" data-nav="configuracion">Configuración</a>
+        <a href="admin.html" data-nav="admin">Admin</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="card section-block">
+        <h3 class="section-title">Calibración de sensores</h3>
+        <p id="calibrationStatus" class="muted">Cargando calibración...</p>
+        <p class="muted calibration-note">Recomendación: si un sensor está desconectado o húmedo, no calibrarlo. Calibrar solo los sensores con lectura estable.</p>
+        <p id="calibrationModeHint" class="muted calibration-mode-hint"></p>
+        <div class="download-grid calibration-toggle-actions">
+          <button id="enableCalibration" class="btn btn-on">Activar calibración</button>
+          <button id="disableCalibration" class="btn btn-off">Desactivar calibración</button>
+        </div>
+        <div class="calibration-cards-grid">
+          <article class="calibration-sensor-card">
+            <h4>Temperatura</h4>
+            <p>Raw: <span id="temperaturaRaw">--</span> °C</p><p>Calibrado: <span id="temperaturaCal">--</span> °C</p><p>Offset actual: <span id="temperatureOffsetCurrent">--</span></p>
+            <label>Temperatura referencia<input id="temperatureRef" type="number" step="0.01" placeholder="Ej: 25.4" /></label>
+            <p id="temperaturePreview" class="offset-preview">Sin cálculo.</p><p id="temperatureCalibrationError" class="muted calibration-error"></p>
+            <div class="download-grid"><button id="calculateTemperature" class="btn btn-secondary">Calcular offset temperatura</button><button id="saveTemperature" class="btn btn-on">Guardar calibración temperatura</button><button id="resetTemperature" class="btn btn-off">Reset temperatura</button></div>
+          </article>
+          <article class="calibration-sensor-card">
+            <h4>Humedad ambiente</h4>
+            <p>Raw: <span id="humedadRaw">--</span> %</p><p>Calibrado: <span id="humedadCal">--</span> %</p><p>Offset actual: <span id="humidityOffsetCurrent">--</span></p>
+            <label>Humedad referencia<input id="humidityRef" type="number" step="0.01" placeholder="Ej: 61.2" /></label>
+            <p id="humidityPreview" class="offset-preview">Sin cálculo.</p><p id="humidityCalibrationWarning" class="calibration-warning" hidden></p><p id="humidityCalibrationError" class="muted calibration-error"></p>
+            <div class="download-grid"><button id="calculateHumidity" class="btn btn-secondary">Calcular offset humedad</button><button id="saveHumidity" class="btn btn-on">Guardar calibración humedad</button><button id="resetHumidity" class="btn btn-off">Reset humedad</button></div>
+          </article>
+          <article class="calibration-sensor-card calibration-sensor-card-co2">
+            <h4>CO2</h4>
+            <p>Raw: <span id="co2Raw">--</span> ppm</p><p>Calibrado: <span id="co2Cal">--</span> ppm</p><p>Offset actual: <span id="co2OffsetCurrent">--</span></p>
+            <label>CO2 referencia<input id="co2Ref" type="number" step="1" placeholder="Ej: 550" /></label>
+            <p id="co2Preview" class="offset-preview">Sin cálculo.</p><p id="co2CalibrationWarning" class="calibration-warning" hidden></p><p id="co2CalibrationError" class="muted calibration-error"></p>
+            <div class="download-grid"><button id="calculateCo2" class="btn btn-secondary">Calcular offset CO2</button><button id="saveCo2" class="btn btn-on">Guardar calibración CO2</button><button id="resetCo2" class="btn btn-off">Reset CO2</button></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">BioSinergia · Tecnología para cultivar con datos</footer>
+    <script src="app.js" defer></script>
+  </body>
+</html>

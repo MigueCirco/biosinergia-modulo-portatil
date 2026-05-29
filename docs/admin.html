@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#166534" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BioSinergia IoT" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="description" content="Dashboard del módulo portátil IoT de BioSinergia" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <title>BioSinergia · Admin</title>
+  </head>
+  <body data-page="admin">
+    <header class="site-header">
+      <div class="brand-wrap">
+        <div class="brand-logo" aria-hidden="true">🌱</div>
+        <div>
+          <h1>BioSinergia</h1>
+          <h2>Módulo Portátil IoT</h2>
+          <p>Monitoreo ambiental y control remoto para cultivos inteligentes.</p>
+        </div>
+      </div>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <a href="index.html" data-nav="home">Inicio</a>
+        <a href="graficos.html" data-nav="graficos">Gráficos</a>
+        <a href="calibracion.html" data-nav="calibracion">Calibración</a>
+        <a href="configuracion.html" data-nav="configuracion">Configuración</a>
+        <a href="admin.html" data-nav="admin">Admin</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="card section-block admin-note">
+        <h3 class="section-title">Área técnica avanzada</h3>
+        <p class="muted">Área técnica. En una versión futura se protegerá con autenticación.</p>
+      </section>
+
+      <section class="status-card card section-block">
+        <div>
+          <h3>Resumen del módulo</h3>
+          <p id="connectionStatus" class="status-pill status-pending">Cargando...</p>
+          <p id="lastReading" class="muted">Última medición del ESP32: --</p>
+          <p id="readingAge" class="muted">Hace -- segundos</p>
+        </div>
+        <p id="lastRefresh" class="muted">Última consulta de la web: --</p>
+      </section>
+
+
+      <section class="card section-block">
+        <h3 class="section-title">Descargas de datos</h3>
+        <p id="downloadStatus" class="muted">Exporta historial y eventos en CSV o JSON.</p>
+        <div class="download-grid">
+          <button id="downloadHistoryCsv" class="btn btn-secondary">Descargar historial CSV</button>
+          <button id="downloadEventsCsv" class="btn btn-secondary">Descargar eventos CSV</button>
+          <button id="downloadHistoryJson" class="btn btn-secondary">Descargar historial JSON</button>
+          <button id="downloadEventsJson" class="btn btn-secondary">Descargar eventos JSON</button>
+        </div>
+      </section>
+
+      <details class="card section-block technical-details">
+        <summary class="section-title">Datos técnicos detallados</summary>
+        <section>
+          <h4>Últimos registros</h4>
+          <p id="historyStatus" class="muted">Cargando historial...</p>
+          <div id="historyList" class="records-list"></div>
+        </section>
+        <section>
+          <h4>Últimos eventos</h4>
+          <p id="eventsStatus" class="muted">Cargando eventos...</p>
+          <div id="eventsList" class="records-list"></div>
+        </section>
+      </details>
+
+      <section class="card section-block">
+        <h3 class="section-title">Diagnóstico técnico</h3>
+        <div class="diag-grid">
+          <p><strong>deviceId:</strong> <span id="diagDeviceId">--</span></p>
+          <p><strong>Última URL consultada:</strong> <span id="diagLastUrl">--</span></p>
+          <p><strong>Último estado GET:</strong> <span id="diagGetStatus">--</span></p>
+          <p><strong>Último estado PATCH:</strong> <span id="diagPatchStatus">--</span></p>
+          <p><strong>Último PATCH calibración:</strong> <span id="diagCalibrationPatch">--</span></p>
+          <p><strong>Modo timer configurado:</strong> <span id="diagTimerConfigured">--</span></p>
+          <p><strong>Última actualización timer:</strong> <span id="diagTimerUpdatedAt">--</span></p>
+          <p><strong>Estado PATCH timer:</strong> <span id="diagTimerPatch">--</span></p>
+          <p><strong>Último sensor calibrado:</strong> <span id="diagCalibrationSensor">--</span></p>
+          <p><strong>Última calibración web:</strong> <span id="diagCalibrationAt">--</span></p>
+          <p><strong>Última carga de gráficos:</strong> <span id="diagChartsLastLoad">--</span></p>
+          <p><strong>Registros en gráficos:</strong> <span id="diagChartsCount">--</span></p>
+          <p><strong>Estado gráficos:</strong> <span id="diagChartsState">--</span></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">BioSinergia · Tecnología para cultivar con datos</footer>
+    <script src="app.js" defer></script>
+  </body>
+</html>
