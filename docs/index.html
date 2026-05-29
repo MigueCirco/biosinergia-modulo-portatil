@@ -12,9 +12,9 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
-    <title>BioSinergia · Módulo Portátil IoT</title>
+    <title>BioSinergia · Inicio</title>
   </head>
-  <body>
+  <body data-page="home">
     <header class="site-header">
       <div class="brand-wrap">
         <div class="brand-logo" aria-hidden="true">🌱</div>
@@ -24,6 +24,13 @@
           <p>Monitoreo ambiental y control remoto para cultivos inteligentes.</p>
         </div>
       </div>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <a href="index.html" data-nav="home">Inicio</a>
+        <a href="graficos.html" data-nav="graficos">Gráficos</a>
+        <a href="calibracion.html" data-nav="calibracion">Calibración</a>
+        <a href="configuracion.html" data-nav="configuracion">Configuración</a>
+        <a href="admin.html" data-nav="admin">Admin</a>
+      </nav>
     </header>
 
     <main class="container">
@@ -88,7 +95,16 @@
           </article>
         </div>
       </section>
-      
+
+      <section class="card section-block mode-compact-card">
+        <h3 class="section-title">Modo actual</h3>
+        <p id="modeStatus" class="muted">Cargando configuración...</p>
+        <label class="compact-mode-label">Modo en configuración
+          <input id="currentMode" type="text" readonly value="--" />
+        </label>
+        <p id="manualControlHint" class="muted"></p>
+      </section>
+
       <section class="summary-grid section-block">
         <article class="card">
           <h3 class="section-title">Decisión automática</h3>
@@ -105,336 +121,14 @@
         </article>
       </section>
 
-
-
-      <section class="card section-block">
-        <h3 class="section-title">Modo de operación</h3>
-        <p id="modeStatus" class="muted">Cargando configuración...</p>
-        <div class="mode-grid">
-          <label>Modo actual en configuración
-            <input id="currentMode" type="text" readonly value="--" />
-          </label>
-          <label>Seleccionar modo
-            <select id="modeSelect">
-              <option value="manual">Manual</option>
-              <option value="auto">Automático</option>
-              <option value="timer">Timer</option>
-            </select>
-          </label>
-        </div>
-        <p class="muted mode-help"><strong>Manual:</strong> los relés se controlan desde la web · <strong>Automático:</strong> el ESP32 toma decisiones según SETs · <strong>Timer:</strong> ciclos y franjas horarias guardadas en Firebase.</p>
-        <div class="download-grid">
-          <button id="applyMode" class="btn btn-secondary">Aplicar modo</button>
-        </div>
-        <p id="manualControlHint" class="muted"></p>
-      </section>
-
-
-
-      <section id="timerConfigSection" class="card section-block timer-config-section" hidden>
-        <h3 class="section-title">Configuración de modo timer</h3>
-        <p class="muted">El modo timer permite accionar humidificador y ventilación por ciclos de tiempo. Es útil como respaldo cuando un sensor falla o cuando se desea trabajar por horarios.</p>
-        <p id="timerStatus" class="muted">Configuración timer lista para editar.</p>
-
-        <article class="timer-info-card">
-          <strong>Importante:</strong> el modo timer requiere firmware compatible. Si el firmware actual no interpreta mode: timer, la configuración quedará guardada en Firebase pero el ESP32 no la ejecutará todavía.
-        </article>
-
-        <div class="timer-grid timer-general-grid">
-          <label>Activar timer
-            <select id="timerEnabled"><option value="true">true</option><option value="false">false</option></select>
-          </label>
-          <label>Tipo de timer
-            <select id="timerMode"><option value="cycle">Ciclos fijos</option><option value="schedule" selected>Franjas horarias</option></select>
-          </label>
-          <label>Zona horaria
-            <input id="timerTimezone" type="text" value="America/Argentina/Tucuman" />
-          </label>
-          <label>Exclusión mutua
-            <select id="timerMutualExclusion"><option value="true">true</option><option value="false">false</option></select>
-          </label>
-          <label>Pausa entre actuadores (segundos)
-            <input id="timerDelayBetweenActuatorsSec" type="number" min="0" max="600" step="1" value="30" />
-          </label>
-        </div>
-        <p id="timerMutualNote" class="timer-note">Humidificador y ventilación no funcionarán al mismo tiempo.</p>
-
-        <div class="timer-cards-grid">
-          <article class="timer-actuator-card">
-            <h4>Humidificador</h4>
-            <div class="timer-grid">
-              <label>Timer humidificador activo
-                <select id="timerHumidifierEnabled"><option value="true">true</option><option value="false">false</option></select>
-              </label>
-              <label>ON durante segundos
-                <input id="timerHumidifierDefaultOnSec" type="number" min="5" max="600" step="1" value="45" />
-              </label>
-              <label>OFF durante minutos
-                <input id="timerHumidifierDefaultOffMin" type="number" min="1" max="240" step="1" value="12" />
-              </label>
-              <label>Franja día/calor inicio
-                <input id="timerHumidifierDayStart" type="time" value="11:00" />
-              </label>
-              <label>Franja día/calor fin
-                <input id="timerHumidifierDayEnd" type="time" value="18:00" />
-              </label>
-              <label>ON día/calor segundos
-                <input id="timerHumidifierDayOnSec" type="number" min="5" max="600" step="1" value="45" />
-              </label>
-              <label>OFF día/calor minutos
-                <input id="timerHumidifierDayOffMin" type="number" min="1" max="240" step="1" value="10" />
-              </label>
-              <label>ON noche segundos
-                <input id="timerHumidifierNightOnSec" type="number" min="5" max="600" step="1" value="30" />
-              </label>
-              <label>OFF noche minutos
-                <input id="timerHumidifierNightOffMin" type="number" min="1" max="240" step="1" value="20" />
-              </label>
-            </div>
-          </article>
-
-          <article class="timer-actuator-card">
-            <h4>Ventilación</h4>
-            <div class="timer-grid">
-              <label>Timer ventilación activo
-                <select id="timerVentilationEnabled"><option value="true">true</option><option value="false">false</option></select>
-              </label>
-              <label>ON durante segundos
-                <input id="timerVentilationDefaultOnSec" type="number" min="5" max="600" step="1" value="60" />
-              </label>
-              <label>OFF durante minutos
-                <input id="timerVentilationDefaultOffMin" type="number" min="1" max="240" step="1" value="15" />
-              </label>
-              <label>Franja día/calor inicio
-                <input id="timerVentilationDayStart" type="time" value="11:00" />
-              </label>
-              <label>Franja día/calor fin
-                <input id="timerVentilationDayEnd" type="time" value="18:00" />
-              </label>
-              <label>ON día/calor segundos
-                <input id="timerVentilationDayOnSec" type="number" min="5" max="600" step="1" value="60" />
-              </label>
-              <label>OFF día/calor minutos
-                <input id="timerVentilationDayOffMin" type="number" min="1" max="240" step="1" value="15" />
-              </label>
-              <label>ON noche segundos
-                <input id="timerVentilationNightOnSec" type="number" min="5" max="600" step="1" value="45" />
-              </label>
-              <label>OFF noche minutos
-                <input id="timerVentilationNightOffMin" type="number" min="1" max="240" step="1" value="25" />
-              </label>
-            </div>
-          </article>
-        </div>
-
-        <div class="download-grid timer-actions">
-          <button id="saveTimerConfig" class="btn btn-on">Guardar configuración timer</button>
-        </div>
-      </section>
-
-      <section class="card section-block">
-        <h3 class="section-title">Configuración automática / SETs</h3>
-        <p id="setpointsStatus" class="muted">Cargando SETs...</p>
-        <div class="setpoint-group">
-          <h4>CO2 / ventilación</h4>
-          <div class="reference-grid">
-            <label>co2Min <input id="co2Min" type="number" step="0.01" /></label>
-            <label>co2Max <input id="co2Max" type="number" step="0.01" /></label>
-            <label>minVentilationOnSec <input id="minVentilationOnSec" type="number" step="1" /></label>
-            <label>minVentilationOffSec <input id="minVentilationOffSec" type="number" step="1" /></label>
-            <label>delayAfterVentilationSec <input id="delayAfterVentilationSec" type="number" step="1" /></label>
-          </div>
-        </div>
-        <div class="setpoint-group">
-          <h4>Humedad / humidificador</h4>
-          <div class="reference-grid">
-            <label>humMin <input id="humMin" type="number" step="0.01" /></label>
-            <label>humMax <input id="humMax" type="number" step="0.01" /></label>
-            <label>minHumidifierOnSec <input id="minHumidifierOnSec" type="number" step="1" /></label>
-            <label>minHumidifierOffSec <input id="minHumidifierOffSec" type="number" step="1" /></label>
-          </div>
-        </div>
-        <div class="setpoint-group">
-          <h4>Temperatura / seguridad</h4>
-          <div class="reference-grid">
-            <label>tempMin <input id="tempMin" type="number" step="0.01" /></label>
-            <label>tempMax <input id="tempMax" type="number" step="0.01" /></label>
-            <label>tempCritical <input id="tempCritical" type="number" step="0.01" /></label>
-          </div>
-        </div>
-        <div class="setpoint-group">
-          <h4>Reglas del sistema</h4>
-          <div class="reference-grid">
-            <label>mutualExclusion
-              <select id="mutualExclusion"><option value="true">true</option><option value="false">false</option></select>
-            </label>
-            <label>crop <input id="crop" type="text" /></label>
-          </div>
-        </div>
-        <div class="download-grid">
-          <button id="saveSetpoints" class="btn btn-on">Guardar SETs</button>
-        </div>
-      </section>
-
-      <section class="card section-block">
-        <h3 class="section-title">Lógica de control</h3>
-        <ul class="logic-list">
-          <li>Manual: control directo de relés desde la web.</li>
-          <li>Automático: el ESP32 decide según SETs.</li>
-          <li>Timer: configuración web de ciclos y franjas horarias guardada en Firebase para firmware compatible.</li>
-          <li>CO2 alto activa ventilación.</li>
-          <li>Humedad baja activa humidificador.</li>
-          <li>Humidificador y ventilación no funcionan juntos si exclusión mutua está activada.</li>
-          <li>Todos los cambios quedan registrados en eventos e historial.</li>
-        </ul>
-      </section>
-
-
-      <section class="card section-block">
-        <h3 class="section-title">Gráficos históricos</h3>
-        <p class="muted">Visualización de temperatura, humedad, CO2 y estados de actuadores registrados en Firebase.</p>
-        <div class="charts-toolbar">
-          <label>Rango analizado
-            <select id="chartRangeSelect">
-              <option value="30">Últimas 30 mediciones</option>
-              <option value="100">Últimas 100 mediciones</option>
-              <option value="300" selected>Últimas 300 mediciones</option>
-              <option value="24h">Últimas 24 horas</option>
-            </select>
-          </label>
-          <label class="checkbox-label">
-            <input id="excludeSuspectData" type="checkbox" />
-            Excluir datos inválidos/sospechosos
-          </label>
-          <button id="refreshCharts" class="btn btn-secondary">Actualizar gráficos</button>
-        </div>
-        <p id="chartsStatus" class="muted">Cargando datos históricos…</p>
-        <article class="chart-summary card-lite">
-          <h4>Resumen del rango</h4>
-          <div id="chartsSummary" class="summary-mini-grid"></div>
-        </article>
-        <div class="chart-panel">
-          <article class="card-lite chart-card chart-container large">
-            <h4>Temperatura</h4>
-            <p id="tempReference" class="muted">SET activo: --</p>
-            <div class="chart-canvas-wrap"><canvas id="tempChart"></canvas></div>
-          </article>
-          <article class="card-lite chart-card chart-container large">
-            <h4>Humedad ambiente</h4>
-            <p id="humReference" class="muted">SET activo: --</p>
-            <div class="chart-canvas-wrap"><canvas id="humChart"></canvas></div>
-          </article>
-          <article class="card-lite chart-card chart-container timeline">
-            <h4>Humidificador</h4>
-            <p class="muted">Actuador de humidificación · 0 = OFF / 1 = ON</p>
-            <div class="chart-canvas-wrap"><canvas id="humidifierChart"></canvas></div>
-          </article>
-          <article class="card-lite chart-card chart-container timeline">
-            <h4>Ventilación</h4>
-            <p class="muted">Intractor + extractor · 0 = OFF / 1 = ON</p>
-            <div class="chart-canvas-wrap"><canvas id="ventilationChart"></canvas></div>
-          </article>
-          <article class="card-lite chart-card chart-container large">
-            <h4>CO2</h4>
-            <p id="co2Reference" class="muted">SET activo: --</p>
-            <div class="chart-canvas-wrap"><canvas id="co2Chart"></canvas></div>
-          </article>
-        </div>
-        <article class="card-lite chart-note">
-          <p>Todas las gráficas comparten el mismo eje temporal. Esto permite analizar correlaciones causa–efecto entre variables ambientales y el accionamiento de actuadores.</p>
-        </article>
-      </section>
-
-      <details class="card section-block technical-details">
-        <summary class="section-title">Datos técnicos detallados</summary>
-        <section>
-          <h4>Últimos registros</h4>
-          <p id="historyStatus" class="muted">Cargando historial...</p>
-          <div id="historyList" class="records-list"></div>
-        </section>
-        <section>
-          <h4>Últimos eventos</h4>
-          <p id="eventsStatus" class="muted">Cargando eventos...</p>
-          <div id="eventsList" class="records-list"></div>
-        </section>
-      </details>
-
-
-      <section class="card section-block">
-        <h3 class="section-title">Descargas de datos</h3>
-        <p id="downloadStatus" class="muted">Exporta historial y eventos en CSV o JSON.</p>
-        <div class="download-grid">
-          <button id="downloadHistoryCsv" class="btn btn-secondary">Descargar historial CSV</button>
-          <button id="downloadEventsCsv" class="btn btn-secondary">Descargar eventos CSV</button>
-          <button id="downloadHistoryJson" class="btn btn-secondary">Descargar historial JSON</button>
-          <button id="downloadEventsJson" class="btn btn-secondary">Descargar eventos JSON</button>
-        </div>
-      </section>
-
-      <section class="card section-block">
-        <h3 class="section-title">Calibración de sensores</h3>
-        <p id="calibrationStatus" class="muted">Cargando calibración...</p>
-        <p class="muted calibration-note">Recomendación: si un sensor está desconectado o húmedo, no calibrarlo. Calibrar solo los sensores con lectura estable.</p>
-        <p id="calibrationModeHint" class="muted calibration-mode-hint"></p>
-        <div class="download-grid calibration-toggle-actions">
-          <button id="enableCalibration" class="btn btn-on">Activar calibración</button>
-          <button id="disableCalibration" class="btn btn-off">Desactivar calibración</button>
-        </div>
-        <div class="calibration-cards-grid">
-          <article class="calibration-sensor-card">
-            <h4>Temperatura</h4>
-            <p>Raw: <span id="temperaturaRaw">--</span> °C</p><p>Calibrado: <span id="temperaturaCal">--</span> °C</p><p>Offset actual: <span id="temperatureOffsetCurrent">--</span></p>
-            <label>Temperatura referencia<input id="temperatureRef" type="number" step="0.01" placeholder="Ej: 25.4" /></label>
-            <p id="temperaturePreview" class="offset-preview">Sin cálculo.</p><p id="temperatureCalibrationError" class="muted calibration-error"></p>
-            <div class="download-grid"><button id="calculateTemperature" class="btn btn-secondary">Calcular offset temperatura</button><button id="saveTemperature" class="btn btn-on">Guardar calibración temperatura</button><button id="resetTemperature" class="btn btn-off">Reset temperatura</button></div>
-          </article>
-          <article class="calibration-sensor-card">
-            <h4>Humedad ambiente</h4>
-            <p>Raw: <span id="humedadRaw">--</span> %</p><p>Calibrado: <span id="humedadCal">--</span> %</p><p>Offset actual: <span id="humidityOffsetCurrent">--</span></p>
-            <label>Humedad referencia<input id="humidityRef" type="number" step="0.01" placeholder="Ej: 61.2" /></label>
-            <p id="humidityPreview" class="offset-preview">Sin cálculo.</p><p id="humidityCalibrationWarning" class="calibration-warning" hidden></p><p id="humidityCalibrationError" class="muted calibration-error"></p>
-            <div class="download-grid"><button id="calculateHumidity" class="btn btn-secondary">Calcular offset humedad</button><button id="saveHumidity" class="btn btn-on">Guardar calibración humedad</button><button id="resetHumidity" class="btn btn-off">Reset humedad</button></div>
-          </article>
-          <article class="calibration-sensor-card calibration-sensor-card-co2">
-            <h4>CO2</h4>
-            <p>Raw: <span id="co2Raw">--</span> ppm</p><p>Calibrado: <span id="co2Cal">--</span> ppm</p><p>Offset actual: <span id="co2OffsetCurrent">--</span></p>
-            <label>CO2 referencia<input id="co2Ref" type="number" step="1" placeholder="Ej: 550" /></label>
-            <p id="co2Preview" class="offset-preview">Sin cálculo.</p><p id="co2CalibrationWarning" class="calibration-warning" hidden></p><p id="co2CalibrationError" class="muted calibration-error"></p>
-            <div class="download-grid"><button id="calculateCo2" class="btn btn-secondary">Calcular offset CO2</button><button id="saveCo2" class="btn btn-on">Guardar calibración CO2</button><button id="resetCo2" class="btn btn-off">Reset CO2</button></div>
-          </article>
-        </div>
-      </section>
-
-
       <section class="card section-block install-card">
         <h3 class="section-title">Instalar como app</h3>
         <p class="muted">Abrí esta página desde el celular y elegí Agregar a pantalla principal o Instalar app.</p>
         <p class="muted">La app usa la web de BioSinergia y mantiene los datos en vivo desde Firebase.</p>
       </section>
-
-      <section class="card section-block">
-        <h3 class="section-title">Diagnóstico técnico</h3>
-        <div class="diag-grid">
-          <p><strong>deviceId:</strong> <span id="diagDeviceId">--</span></p>
-          <p><strong>Última URL consultada:</strong> <span id="diagLastUrl">--</span></p>
-          <p><strong>Último estado GET:</strong> <span id="diagGetStatus">--</span></p>
-          <p><strong>Último estado PATCH:</strong> <span id="diagPatchStatus">--</span></p>
-          <p><strong>Último PATCH calibración:</strong> <span id="diagCalibrationPatch">--</span></p>
-          <p><strong>Modo timer configurado:</strong> <span id="diagTimerConfigured">--</span></p>
-          <p><strong>Última actualización timer:</strong> <span id="diagTimerUpdatedAt">--</span></p>
-          <p><strong>Estado PATCH timer:</strong> <span id="diagTimerPatch">--</span></p>
-          <p><strong>Último sensor calibrado:</strong> <span id="diagCalibrationSensor">--</span></p>
-          <p><strong>Última calibración web:</strong> <span id="diagCalibrationAt">--</span></p>
-          <p><strong>Última carga de gráficos:</strong> <span id="diagChartsLastLoad">--</span></p>
-          <p><strong>Registros en gráficos:</strong> <span id="diagChartsCount">--</span></p>
-          <p><strong>Estado gráficos:</strong> <span id="diagChartsState">--</span></p>
-        </div>
-      </section>
     </main>
 
     <footer class="site-footer">BioSinergia · Tecnología para cultivar con datos</footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>

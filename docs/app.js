@@ -8,6 +8,48 @@ const DEVICE_ID = "biosinergia_001";
 // Si usas token, agrégalo aquí. Para pruebas abiertas puede quedar vacío.
 const FIREBASE_AUTH = "";
 
+
+const PAGE = document.body?.dataset?.page || "home";
+const noop = () => {};
+const missingClassList = { add: noop, remove: noop, toggle: noop, contains: () => false };
+function createMissingElement(id) {
+  return {
+    id,
+    dataset: {},
+    style: {},
+    classList: missingClassList,
+    textContent: "",
+    innerHTML: "",
+    className: "",
+    value: "",
+    checked: false,
+    hidden: false,
+    disabled: false,
+    addEventListener: noop,
+    removeEventListener: noop,
+    appendChild: noop,
+    replaceChildren: noop,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getContext: () => null
+  };
+}
+function $(id) {
+  return document.getElementById(id) || createMissingElement(id);
+}
+function hasElement(id) {
+  return document.getElementById(id) !== null;
+}
+function on(el, eventName, handler) {
+  if (el && typeof el.addEventListener === "function" && document.getElementById(el.id)) {
+    el.addEventListener(eventName, handler);
+  }
+}
+function runEvery(task, ms) {
+  task();
+  return setInterval(task, ms);
+}
+
 const latestPath = `/devices/${DEVICE_ID}/latest.json`;
 const commandsPath = `/devices/${DEVICE_ID}/commands.json`;
 const historyPath = `/devices/${DEVICE_ID}/history.json?orderBy=%22$key%22&limitToLast=10`;
@@ -23,136 +65,136 @@ const chartsRefreshMs = 60000;
 const charts24hLimit = 1500;
 
 const els = {
-  connectionStatus: document.getElementById("connectionStatus"),
-  lastRefresh: document.getElementById("lastRefresh"),
-  lastReading: document.getElementById("lastReading"),
-  readingAge: document.getElementById("readingAge"),
-  temperatura: document.getElementById("temperatura"),
-  humedadAmbiente: document.getElementById("humedadAmbiente"),
-  humedadSuelo: document.getElementById("humedadSuelo"),
-  co2: document.getElementById("co2"),
-  temperatureQualityCard: document.getElementById("temperatureQualityCard"),
-  temperatureQualityState: document.getElementById("temperatureQualityState"),
-  temperatureQualityDetail: document.getElementById("temperatureQualityDetail"),
-  humidityQualityCard: document.getElementById("humidityQualityCard"),
-  humidityQualityState: document.getElementById("humidityQualityState"),
-  humidityQualityDetail: document.getElementById("humidityQualityDetail"),
-  co2QualityCard: document.getElementById("co2QualityCard"),
-  co2QualityState: document.getElementById("co2QualityState"),
-  co2QualityDetail: document.getElementById("co2QualityDetail"),
-  distanciaCm: document.getElementById("distanciaCm"),
-  uptime: document.getElementById("uptime"),
-  relay1State: document.getElementById("relay1State"),
-  relay2State: document.getElementById("relay2State"),
-  historyStatus: document.getElementById("historyStatus"),
-  historyList: document.getElementById("historyList"),
-  eventsStatus: document.getElementById("eventsStatus"),
-  eventsList: document.getElementById("eventsList"),
-  diagDeviceId: document.getElementById("diagDeviceId"),
-  diagLastUrl: document.getElementById("diagLastUrl"),
-  diagGetStatus: document.getElementById("diagGetStatus"),
-  diagPatchStatus: document.getElementById("diagPatchStatus"),
-  downloadStatus: document.getElementById("downloadStatus"),
-  downloadHistoryCsv: document.getElementById("downloadHistoryCsv"),
-  downloadEventsCsv: document.getElementById("downloadEventsCsv"),
-  downloadHistoryJson: document.getElementById("downloadHistoryJson"),
-  downloadEventsJson: document.getElementById("downloadEventsJson"),
-  calibrationStatus: document.getElementById("calibrationStatus"),
-  calibrationModeHint: document.getElementById("calibrationModeHint"),
-  enableCalibration: document.getElementById("enableCalibration"),
-  disableCalibration: document.getElementById("disableCalibration"),
-  temperaturaRaw: document.getElementById("temperaturaRaw"),
-  humedadRaw: document.getElementById("humedadRaw"),
-  co2Raw: document.getElementById("co2Raw"),
-  temperaturaCal: document.getElementById("temperaturaCal"),
-  humedadCal: document.getElementById("humedadCal"),
-  co2Cal: document.getElementById("co2Cal"),
-  temperatureOffsetCurrent: document.getElementById("temperatureOffsetCurrent"),
-  humidityOffsetCurrent: document.getElementById("humidityOffsetCurrent"),
-  co2OffsetCurrent: document.getElementById("co2OffsetCurrent"),
-  temperatureRef: document.getElementById("temperatureRef"),
-  humidityRef: document.getElementById("humidityRef"),
-  co2Ref: document.getElementById("co2Ref"),
-  calculateTemperature: document.getElementById("calculateTemperature"),
-  calculateHumidity: document.getElementById("calculateHumidity"),
-  calculateCo2: document.getElementById("calculateCo2"),
-  saveTemperature: document.getElementById("saveTemperature"),
-  saveHumidity: document.getElementById("saveHumidity"),
-  saveCo2: document.getElementById("saveCo2"),
-  resetTemperature: document.getElementById("resetTemperature"),
-  resetHumidity: document.getElementById("resetHumidity"),
-  resetCo2: document.getElementById("resetCo2"),
-  temperaturePreview: document.getElementById("temperaturePreview"),
-  humidityPreview: document.getElementById("humidityPreview"),
-  co2Preview: document.getElementById("co2Preview"),
-  humidityCalibrationWarning: document.getElementById("humidityCalibrationWarning"),
-  co2CalibrationWarning: document.getElementById("co2CalibrationWarning"),
-  temperatureCalibrationError: document.getElementById("temperatureCalibrationError"),
-  humidityCalibrationError: document.getElementById("humidityCalibrationError"),
-  co2CalibrationError: document.getElementById("co2CalibrationError"),
-  modeStatus: document.getElementById("modeStatus"),
-  currentMode: document.getElementById("currentMode"),
-  modeSelect: document.getElementById("modeSelect"),
-  applyMode: document.getElementById("applyMode"),
-  manualControlHint: document.getElementById("manualControlHint"),
-  autoDecisionStatus: document.getElementById("autoDecisionStatus"),
-  activeSetSummary: document.getElementById("activeSetSummary"),
-  setpointsStatus: document.getElementById("setpointsStatus"),
-  saveSetpoints: document.getElementById("saveSetpoints"),
-  co2Min: document.getElementById("co2Min"),
-  co2Max: document.getElementById("co2Max"),
-  humMin: document.getElementById("humMin"),
-  humMax: document.getElementById("humMax"),
-  tempMin: document.getElementById("tempMin"),
-  tempMax: document.getElementById("tempMax"),
-  tempCritical: document.getElementById("tempCritical"),
-  minHumidifierOnSec: document.getElementById("minHumidifierOnSec"),
-  minHumidifierOffSec: document.getElementById("minHumidifierOffSec"),
-  minVentilationOnSec: document.getElementById("minVentilationOnSec"),
-  minVentilationOffSec: document.getElementById("minVentilationOffSec"),
-  delayAfterVentilationSec: document.getElementById("delayAfterVentilationSec"),
-  mutualExclusion: document.getElementById("mutualExclusion"),
-  crop: document.getElementById("crop"),
-  chartRangeSelect: document.getElementById("chartRangeSelect"),
-  excludeSuspectData: document.getElementById("excludeSuspectData"),
-  refreshCharts: document.getElementById("refreshCharts"),
-  chartsStatus: document.getElementById("chartsStatus"),
-  chartsSummary: document.getElementById("chartsSummary"),
-  tempReference: document.getElementById("tempReference"),
-  humReference: document.getElementById("humReference"),
-  co2Reference: document.getElementById("co2Reference"),
-  tempChart: document.getElementById("tempChart"),
-  humChart: document.getElementById("humChart"),
-  co2Chart: document.getElementById("co2Chart"),
-  humidifierChart: document.getElementById("humidifierChart"),
-  ventilationChart: document.getElementById("ventilationChart"),
-  timerConfigSection: document.getElementById("timerConfigSection"),
-  timerStatus: document.getElementById("timerStatus"),
-  timerEnabled: document.getElementById("timerEnabled"),
-  timerMode: document.getElementById("timerMode"),
-  timerTimezone: document.getElementById("timerTimezone"),
-  timerMutualExclusion: document.getElementById("timerMutualExclusion"),
-  timerDelayBetweenActuatorsSec: document.getElementById("timerDelayBetweenActuatorsSec"),
-  timerMutualNote: document.getElementById("timerMutualNote"),
-  timerHumidifierEnabled: document.getElementById("timerHumidifierEnabled"),
-  timerHumidifierDefaultOnSec: document.getElementById("timerHumidifierDefaultOnSec"),
-  timerHumidifierDefaultOffMin: document.getElementById("timerHumidifierDefaultOffMin"),
-  timerHumidifierDayStart: document.getElementById("timerHumidifierDayStart"),
-  timerHumidifierDayEnd: document.getElementById("timerHumidifierDayEnd"),
-  timerHumidifierDayOnSec: document.getElementById("timerHumidifierDayOnSec"),
-  timerHumidifierDayOffMin: document.getElementById("timerHumidifierDayOffMin"),
-  timerHumidifierNightOnSec: document.getElementById("timerHumidifierNightOnSec"),
-  timerHumidifierNightOffMin: document.getElementById("timerHumidifierNightOffMin"),
-  timerVentilationEnabled: document.getElementById("timerVentilationEnabled"),
-  timerVentilationDefaultOnSec: document.getElementById("timerVentilationDefaultOnSec"),
-  timerVentilationDefaultOffMin: document.getElementById("timerVentilationDefaultOffMin"),
-  timerVentilationDayStart: document.getElementById("timerVentilationDayStart"),
-  timerVentilationDayEnd: document.getElementById("timerVentilationDayEnd"),
-  timerVentilationDayOnSec: document.getElementById("timerVentilationDayOnSec"),
-  timerVentilationDayOffMin: document.getElementById("timerVentilationDayOffMin"),
-  timerVentilationNightOnSec: document.getElementById("timerVentilationNightOnSec"),
-  timerVentilationNightOffMin: document.getElementById("timerVentilationNightOffMin"),
-  saveTimerConfig: document.getElementById("saveTimerConfig")
+  connectionStatus: $("connectionStatus"),
+  lastRefresh: $("lastRefresh"),
+  lastReading: $("lastReading"),
+  readingAge: $("readingAge"),
+  temperatura: $("temperatura"),
+  humedadAmbiente: $("humedadAmbiente"),
+  humedadSuelo: $("humedadSuelo"),
+  co2: $("co2"),
+  temperatureQualityCard: $("temperatureQualityCard"),
+  temperatureQualityState: $("temperatureQualityState"),
+  temperatureQualityDetail: $("temperatureQualityDetail"),
+  humidityQualityCard: $("humidityQualityCard"),
+  humidityQualityState: $("humidityQualityState"),
+  humidityQualityDetail: $("humidityQualityDetail"),
+  co2QualityCard: $("co2QualityCard"),
+  co2QualityState: $("co2QualityState"),
+  co2QualityDetail: $("co2QualityDetail"),
+  distanciaCm: $("distanciaCm"),
+  uptime: $("uptime"),
+  relay1State: $("relay1State"),
+  relay2State: $("relay2State"),
+  historyStatus: $("historyStatus"),
+  historyList: $("historyList"),
+  eventsStatus: $("eventsStatus"),
+  eventsList: $("eventsList"),
+  diagDeviceId: $("diagDeviceId"),
+  diagLastUrl: $("diagLastUrl"),
+  diagGetStatus: $("diagGetStatus"),
+  diagPatchStatus: $("diagPatchStatus"),
+  downloadStatus: $("downloadStatus"),
+  downloadHistoryCsv: $("downloadHistoryCsv"),
+  downloadEventsCsv: $("downloadEventsCsv"),
+  downloadHistoryJson: $("downloadHistoryJson"),
+  downloadEventsJson: $("downloadEventsJson"),
+  calibrationStatus: $("calibrationStatus"),
+  calibrationModeHint: $("calibrationModeHint"),
+  enableCalibration: $("enableCalibration"),
+  disableCalibration: $("disableCalibration"),
+  temperaturaRaw: $("temperaturaRaw"),
+  humedadRaw: $("humedadRaw"),
+  co2Raw: $("co2Raw"),
+  temperaturaCal: $("temperaturaCal"),
+  humedadCal: $("humedadCal"),
+  co2Cal: $("co2Cal"),
+  temperatureOffsetCurrent: $("temperatureOffsetCurrent"),
+  humidityOffsetCurrent: $("humidityOffsetCurrent"),
+  co2OffsetCurrent: $("co2OffsetCurrent"),
+  temperatureRef: $("temperatureRef"),
+  humidityRef: $("humidityRef"),
+  co2Ref: $("co2Ref"),
+  calculateTemperature: $("calculateTemperature"),
+  calculateHumidity: $("calculateHumidity"),
+  calculateCo2: $("calculateCo2"),
+  saveTemperature: $("saveTemperature"),
+  saveHumidity: $("saveHumidity"),
+  saveCo2: $("saveCo2"),
+  resetTemperature: $("resetTemperature"),
+  resetHumidity: $("resetHumidity"),
+  resetCo2: $("resetCo2"),
+  temperaturePreview: $("temperaturePreview"),
+  humidityPreview: $("humidityPreview"),
+  co2Preview: $("co2Preview"),
+  humidityCalibrationWarning: $("humidityCalibrationWarning"),
+  co2CalibrationWarning: $("co2CalibrationWarning"),
+  temperatureCalibrationError: $("temperatureCalibrationError"),
+  humidityCalibrationError: $("humidityCalibrationError"),
+  co2CalibrationError: $("co2CalibrationError"),
+  modeStatus: $("modeStatus"),
+  currentMode: $("currentMode"),
+  modeSelect: $("modeSelect"),
+  applyMode: $("applyMode"),
+  manualControlHint: $("manualControlHint"),
+  autoDecisionStatus: $("autoDecisionStatus"),
+  activeSetSummary: $("activeSetSummary"),
+  setpointsStatus: $("setpointsStatus"),
+  saveSetpoints: $("saveSetpoints"),
+  co2Min: $("co2Min"),
+  co2Max: $("co2Max"),
+  humMin: $("humMin"),
+  humMax: $("humMax"),
+  tempMin: $("tempMin"),
+  tempMax: $("tempMax"),
+  tempCritical: $("tempCritical"),
+  minHumidifierOnSec: $("minHumidifierOnSec"),
+  minHumidifierOffSec: $("minHumidifierOffSec"),
+  minVentilationOnSec: $("minVentilationOnSec"),
+  minVentilationOffSec: $("minVentilationOffSec"),
+  delayAfterVentilationSec: $("delayAfterVentilationSec"),
+  mutualExclusion: $("mutualExclusion"),
+  crop: $("crop"),
+  chartRangeSelect: $("chartRangeSelect"),
+  excludeSuspectData: $("excludeSuspectData"),
+  refreshCharts: $("refreshCharts"),
+  chartsStatus: $("chartsStatus"),
+  chartsSummary: $("chartsSummary"),
+  tempReference: $("tempReference"),
+  humReference: $("humReference"),
+  co2Reference: $("co2Reference"),
+  tempChart: $("tempChart"),
+  humChart: $("humChart"),
+  co2Chart: $("co2Chart"),
+  humidifierChart: $("humidifierChart"),
+  ventilationChart: $("ventilationChart"),
+  timerConfigSection: $("timerConfigSection"),
+  timerStatus: $("timerStatus"),
+  timerEnabled: $("timerEnabled"),
+  timerMode: $("timerMode"),
+  timerTimezone: $("timerTimezone"),
+  timerMutualExclusion: $("timerMutualExclusion"),
+  timerDelayBetweenActuatorsSec: $("timerDelayBetweenActuatorsSec"),
+  timerMutualNote: $("timerMutualNote"),
+  timerHumidifierEnabled: $("timerHumidifierEnabled"),
+  timerHumidifierDefaultOnSec: $("timerHumidifierDefaultOnSec"),
+  timerHumidifierDefaultOffMin: $("timerHumidifierDefaultOffMin"),
+  timerHumidifierDayStart: $("timerHumidifierDayStart"),
+  timerHumidifierDayEnd: $("timerHumidifierDayEnd"),
+  timerHumidifierDayOnSec: $("timerHumidifierDayOnSec"),
+  timerHumidifierDayOffMin: $("timerHumidifierDayOffMin"),
+  timerHumidifierNightOnSec: $("timerHumidifierNightOnSec"),
+  timerHumidifierNightOffMin: $("timerHumidifierNightOffMin"),
+  timerVentilationEnabled: $("timerVentilationEnabled"),
+  timerVentilationDefaultOnSec: $("timerVentilationDefaultOnSec"),
+  timerVentilationDefaultOffMin: $("timerVentilationDefaultOffMin"),
+  timerVentilationDayStart: $("timerVentilationDayStart"),
+  timerVentilationDayEnd: $("timerVentilationDayEnd"),
+  timerVentilationDayOnSec: $("timerVentilationDayOnSec"),
+  timerVentilationDayOffMin: $("timerVentilationDayOffMin"),
+  timerVentilationNightOnSec: $("timerVentilationNightOnSec"),
+  timerVentilationNightOffMin: $("timerVentilationNightOffMin"),
+  saveTimerConfig: $("saveTimerConfig")
 };
 
 const diag = {
@@ -460,15 +502,15 @@ function updateDiagnostics() {
   els.diagLastUrl.textContent = diag.lastUrl;
   els.diagGetStatus.textContent = diag.lastGetStatus;
   els.diagPatchStatus.textContent = diag.lastPatchStatus;
-  const chartsLoadEl = document.getElementById("diagChartsLastLoad");
-  const calibrationPatchEl = document.getElementById("diagCalibrationPatch");
-  const calibrationSensorEl = document.getElementById("diagCalibrationSensor");
-  const calibrationAtEl = document.getElementById("diagCalibrationAt");
-  const chartsCountEl = document.getElementById("diagChartsCount");
-  const chartsStateEl = document.getElementById("diagChartsState");
-  const timerConfiguredEl = document.getElementById("diagTimerConfigured");
-  const timerUpdatedAtEl = document.getElementById("diagTimerUpdatedAt");
-  const timerPatchEl = document.getElementById("diagTimerPatch");
+  const chartsLoadEl = $("diagChartsLastLoad");
+  const calibrationPatchEl = $("diagCalibrationPatch");
+  const calibrationSensorEl = $("diagCalibrationSensor");
+  const calibrationAtEl = $("diagCalibrationAt");
+  const chartsCountEl = $("diagChartsCount");
+  const chartsStateEl = $("diagChartsState");
+  const timerConfiguredEl = $("diagTimerConfigured");
+  const timerUpdatedAtEl = $("diagTimerUpdatedAt");
+  const timerPatchEl = $("diagTimerPatch");
   if (chartsLoadEl) chartsLoadEl.textContent = diag.chartsLastLoad;
   if (chartsCountEl) chartsCountEl.textContent = diag.chartsCount;
   if (chartsStateEl) chartsStateEl.textContent = diag.chartsState;
@@ -1214,7 +1256,7 @@ async function applyMode() {
     els.modeStatus.textContent = "Modo aplicado correctamente";
     updateDiagnostics();
     await fetchConfig();
-    fetchAndRenderCharts();
+    if (PAGE === "graficos") fetchAndRenderCharts();
   } catch (error) {
     console.error("Error aplicando modo:", error);
     els.modeStatus.textContent = "Error al aplicar modo";
@@ -1235,36 +1277,36 @@ async function saveSetpoints() {
     els.setpointsStatus.textContent = "SETs guardados correctamente";
     updateDiagnostics();
     await fetchConfig();
-    fetchAndRenderCharts();
+    if (PAGE === "graficos") fetchAndRenderCharts();
   } catch (error) {
     console.error("Error guardando setpoints:", error);
     els.setpointsStatus.textContent = "Error guardando SETs";
   }
 }
 
-els.downloadHistoryCsv.addEventListener("click", () => handleDownload(historyDownloadPath, "csv", "history"));
-els.downloadEventsCsv.addEventListener("click", () => handleDownload(eventsDownloadPath, "csv", "events"));
-els.downloadHistoryJson.addEventListener("click", () => handleDownload(historyDownloadPath, "json", "history"));
-els.downloadEventsJson.addEventListener("click", () => handleDownload(eventsDownloadPath, "json", "events"));
-els.calculateTemperature.addEventListener("click", () => calculateSensorCalibration("temperature"));
-els.calculateHumidity.addEventListener("click", () => calculateSensorCalibration("humidity"));
-els.calculateCo2.addEventListener("click", () => calculateSensorCalibration("co2"));
-els.saveTemperature.addEventListener("click", () => saveSensorCalibration("temperature"));
-els.saveHumidity.addEventListener("click", () => saveSensorCalibration("humidity"));
-els.saveCo2.addEventListener("click", () => saveSensorCalibration("co2"));
-els.resetTemperature.addEventListener("click", () => resetSensorCalibration("temperature"));
-els.resetHumidity.addEventListener("click", () => resetSensorCalibration("humidity"));
-els.resetCo2.addEventListener("click", () => resetSensorCalibration("co2"));
-els.enableCalibration.addEventListener("click", enableCalibration);
-els.disableCalibration.addEventListener("click", disableCalibration);
-els.applyMode.addEventListener("click", applyMode);
-els.modeSelect.addEventListener("change", () => updateTimerVisibility(getTimerMode(els.modeSelect.value)));
-els.timerMutualExclusion?.addEventListener("change", updateTimerMutualNote);
-els.saveTimerConfig?.addEventListener("click", saveTimerConfig);
-els.saveSetpoints.addEventListener("click", saveSetpoints);
-els.refreshCharts?.addEventListener("click", fetchAndRenderCharts);
-els.chartRangeSelect?.addEventListener("change", fetchAndRenderCharts);
-els.excludeSuspectData?.addEventListener("change", fetchAndRenderCharts);
+on(els.downloadHistoryCsv, "click", () => handleDownload(historyDownloadPath, "csv", "history"));
+on(els.downloadEventsCsv, "click", () => handleDownload(eventsDownloadPath, "csv", "events"));
+on(els.downloadHistoryJson, "click", () => handleDownload(historyDownloadPath, "json", "history"));
+on(els.downloadEventsJson, "click", () => handleDownload(eventsDownloadPath, "json", "events"));
+on(els.calculateTemperature, "click", () => calculateSensorCalibration("temperature"));
+on(els.calculateHumidity, "click", () => calculateSensorCalibration("humidity"));
+on(els.calculateCo2, "click", () => calculateSensorCalibration("co2"));
+on(els.saveTemperature, "click", () => saveSensorCalibration("temperature"));
+on(els.saveHumidity, "click", () => saveSensorCalibration("humidity"));
+on(els.saveCo2, "click", () => saveSensorCalibration("co2"));
+on(els.resetTemperature, "click", () => resetSensorCalibration("temperature"));
+on(els.resetHumidity, "click", () => resetSensorCalibration("humidity"));
+on(els.resetCo2, "click", () => resetSensorCalibration("co2"));
+on(els.enableCalibration, "click", enableCalibration);
+on(els.disableCalibration, "click", disableCalibration);
+on(els.applyMode, "click", applyMode);
+on(els.modeSelect, "change", () => updateTimerVisibility(getTimerMode(els.modeSelect.value)));
+on(els.timerMutualExclusion, "change", updateTimerMutualNote);
+on(els.saveTimerConfig, "click", saveTimerConfig);
+on(els.saveSetpoints, "click", saveSetpoints);
+on(els.refreshCharts, "click", fetchAndRenderCharts);
+on(els.chartRangeSelect, "change", fetchAndRenderCharts);
+on(els.excludeSuspectData, "change", fetchAndRenderCharts);
 
 document.querySelectorAll("button[data-relay]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -1274,20 +1316,52 @@ document.querySelectorAll("button[data-relay]").forEach((button) => {
   });
 });
 
-updateDiagnostics();
-fetchLatest();
-fetchHistory();
-fetchEvents();
-fetchCalibration();
-fetchConfig();
-fetchAndRenderCharts();
-setInterval(fetchLatest, refreshMs);
-setInterval(fetchHistory, historyRefreshMs);
-setInterval(fetchEvents, historyRefreshMs);
-setInterval(fetchCalibration, historyRefreshMs);
-setInterval(fetchConfig, historyRefreshMs);
-setInterval(fetchAndRenderCharts, chartsRefreshMs);
-setInterval(updateReadingAge, 1000);
+window.fetchHistory = fetchHistory;
+window.fetchEvents = fetchEvents;
+window.downloadHistoryCSV = () => handleDownload(historyDownloadPath, "csv", "history");
+window.downloadEventsCSV = () => handleDownload(eventsDownloadPath, "csv", "events");
+window.downloadHistoryJSON = () => handleDownload(historyDownloadPath, "json", "history");
+window.downloadEventsJSON = () => handleDownload(eventsDownloadPath, "json", "events");
+
+function initPage() {
+  updateDiagnostics();
+  if (PAGE === "home") {
+    runEvery(fetchLatest, refreshMs);
+    runEvery(fetchHistory, historyRefreshMs);
+    runEvery(fetchConfig, historyRefreshMs);
+    runEvery(fetchCalibration, historyRefreshMs);
+    setInterval(updateReadingAge, 1000);
+    return;
+  }
+  if (PAGE === "graficos") {
+    fetchConfig().then(fetchAndRenderCharts);
+    setInterval(fetchConfig, historyRefreshMs);
+    setInterval(fetchAndRenderCharts, chartsRefreshMs);
+    return;
+  }
+  if (PAGE === "calibracion") {
+    runEvery(fetchLatest, refreshMs);
+    runEvery(fetchCalibration, historyRefreshMs);
+    runEvery(fetchConfig, historyRefreshMs);
+    setInterval(updateReadingAge, 1000);
+    return;
+  }
+  if (PAGE === "configuracion") {
+    runEvery(fetchConfig, historyRefreshMs);
+    fetchLatest();
+    return;
+  }
+  if (PAGE === "admin") {
+    runEvery(fetchLatest, refreshMs);
+    runEvery(fetchHistory, historyRefreshMs);
+    runEvery(fetchEvents, historyRefreshMs);
+    runEvery(fetchCalibration, historyRefreshMs);
+    runEvery(fetchConfig, historyRefreshMs);
+    setInterval(updateReadingAge, 1000);
+  }
+}
+
+initPage();
 
 
 if ("serviceWorker" in navigator) {

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#166534" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BioSinergia IoT" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="description" content="Dashboard del módulo portátil IoT de BioSinergia" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <title>BioSinergia · Gráficos</title>
+  </head>
+  <body data-page="graficos">
+    <header class="site-header">
+      <div class="brand-wrap">
+        <div class="brand-logo" aria-hidden="true">🌱</div>
+        <div>
+          <h1>BioSinergia</h1>
+          <h2>Módulo Portátil IoT</h2>
+          <p>Monitoreo ambiental y control remoto para cultivos inteligentes.</p>
+        </div>
+      </div>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <a href="index.html" data-nav="home">Inicio</a>
+        <a href="graficos.html" data-nav="graficos">Gráficos</a>
+        <a href="calibracion.html" data-nav="calibracion">Calibración</a>
+        <a href="configuracion.html" data-nav="configuracion">Configuración</a>
+        <a href="admin.html" data-nav="admin">Admin</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="card section-block">
+        <h3 class="section-title">Gráficos históricos</h3>
+        <p class="muted">Visualización de temperatura, humedad, CO2 y estados de actuadores registrados en Firebase.</p>
+        <div class="charts-toolbar">
+          <label>Rango analizado
+            <select id="chartRangeSelect">
+              <option value="30">Últimas 30 mediciones</option>
+              <option value="100">Últimas 100 mediciones</option>
+              <option value="300" selected>Últimas 300 mediciones</option>
+              <option value="24h">Últimas 24 horas</option>
+            </select>
+          </label>
+          <label class="checkbox-label">
+            <input id="excludeSuspectData" type="checkbox" />
+            Excluir datos inválidos/sospechosos
+          </label>
+          <button id="refreshCharts" class="btn btn-secondary">Actualizar gráficos</button>
+        </div>
+        <p id="chartsStatus" class="muted">Cargando datos históricos…</p>
+        <article class="chart-summary card-lite">
+          <h4>Resumen del rango</h4>
+          <div id="chartsSummary" class="summary-mini-grid"></div>
+        </article>
+        <div class="chart-panel">
+          <article class="card-lite chart-card chart-container large">
+            <h4>Temperatura</h4>
+            <p id="tempReference" class="muted">SET activo: --</p>
+            <div class="chart-canvas-wrap"><canvas id="tempChart"></canvas></div>
+          </article>
+          <article class="card-lite chart-card chart-container large">
+            <h4>Humedad ambiente</h4>
+            <p id="humReference" class="muted">SET activo: --</p>
+            <div class="chart-canvas-wrap"><canvas id="humChart"></canvas></div>
+          </article>
+          <article class="card-lite chart-card chart-container timeline">
+            <h4>Humidificador</h4>
+            <p class="muted">Actuador de humidificación · 0 = OFF / 1 = ON</p>
+            <div class="chart-canvas-wrap"><canvas id="humidifierChart"></canvas></div>
+          </article>
+          <article class="card-lite chart-card chart-container timeline">
+            <h4>Ventilación</h4>
+            <p class="muted">Intractor + extractor · 0 = OFF / 1 = ON</p>
+            <div class="chart-canvas-wrap"><canvas id="ventilationChart"></canvas></div>
+          </article>
+          <article class="card-lite chart-card chart-container large">
+            <h4>CO2</h4>
+            <p id="co2Reference" class="muted">SET activo: --</p>
+            <div class="chart-canvas-wrap"><canvas id="co2Chart"></canvas></div>
+          </article>
+        </div>
+        <article class="card-lite chart-note">
+          <p>Todas las gráficas comparten el mismo eje temporal. Esto permite analizar correlaciones causa–efecto entre variables ambientales y el accionamiento de actuadores.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">BioSinergia · Tecnología para cultivar con datos</footer>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>

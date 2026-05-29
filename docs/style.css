@@ -148,3 +148,20 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 .checkbox-label input { width:18px; height:18px; accent-color:#166534; }
 .calibration-warning { margin:.4rem 0; padding:.55rem .65rem; border-radius:10px; background:#fff7d6; color:#6b4d00; font-weight:700; }
 .calibration-warning[hidden] { display:none; }
+
+.site-nav { max-width: 1100px; margin: 1rem auto 0; display: flex; gap: .55rem; flex-wrap: wrap; }
+.site-nav a { color: var(--white); text-decoration: none; padding: .5rem .8rem; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); font-weight: 700; }
+.site-nav a:hover, .site-nav a:focus { background: rgba(255,255,255,.22); outline: none; }
+body[data-page="home"] .site-nav a[data-nav="home"],
+body[data-page="graficos"] .site-nav a[data-nav="graficos"],
+body[data-page="calibracion"] .site-nav a[data-nav="calibracion"],
+body[data-page="configuracion"] .site-nav a[data-nav="configuracion"],
+body[data-page="admin"] .site-nav a[data-nav="admin"] { background: var(--white); color: var(--green-dark); }
+.compact-mode-label { display: flex; flex-direction: column; gap: .35rem; max-width: 320px; margin-top: .7rem; color: var(--muted); font-size: .92rem; }
+.compact-mode-label input { border: 1px solid #c9dfd4; border-radius: 9px; padding: .55rem .65rem; font-size: .95rem; background: #fff; }
+.admin-note { border-left: 4px solid #166534; }
+@media (max-width: 640px) {
+  .site-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .site-nav a { text-align: center; }
+}
+@media (max-width: 380px) { .site-nav { grid-template-columns: 1fr; } }
