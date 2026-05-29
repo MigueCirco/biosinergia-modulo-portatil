@@ -56,6 +56,30 @@
         <p id="manualControlHint" class="muted"></p>
       </section>
 
+
+      <section class="card section-block ambient-sensor-section">
+        <h3 class="section-title">Sensor ambiente</h3>
+        <p class="muted">Esto no reprograma la placa; actualiza la configuración leída por el ESP32.</p>
+        <div class="mode-grid">
+          <label>Tipo configurado
+            <select id="sensorAmbientTypeSelect">
+              <option value="DHT11">DHT11</option>
+              <option value="DHT22">DHT22</option>
+            </select>
+          </label>
+          <label>Sensor aplicado por el ESP32
+            <input id="sensorAmbientApplied" type="text" readonly value="--" />
+          </label>
+          <label>Estado reportado
+            <input id="sensorAmbientStatus" type="text" readonly value="--" />
+          </label>
+        </div>
+        <p id="sensorAmbientConfigStatus" class="muted">Cargando tipo de sensor...</p>
+        <div class="download-grid">
+          <button id="saveSensorAmbientType" class="btn btn-on">Guardar tipo de sensor</button>
+        </div>
+      </section>
+
       <section id="timerConfigSection" class="card section-block timer-config-section" hidden>
         <h3 class="section-title">Configuración de modo timer</h3>
         <p class="muted">El modo timer permite accionar humidificador y ventilación por ciclos de tiempo. Es útil como respaldo cuando un sensor falla o cuando se desea trabajar por horarios.</p>

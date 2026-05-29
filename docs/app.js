@@ -69,6 +69,11 @@ const els = {
   lastRefresh: $("lastRefresh"),
   lastReading: $("lastReading"),
   readingAge: $("readingAge"),
+  homeModeChip: $("homeModeChip"),
+  homeSensorTypeChip: $("homeSensorTypeChip"),
+  homeCo2StatusChip: $("homeCo2StatusChip"),
+  homeCalibrationChip: $("homeCalibrationChip"),
+  homeLastValidChip: $("homeLastValidChip"),
   temperatura: $("temperatura"),
   humedadAmbiente: $("humedadAmbiente"),
   humedadSuelo: $("humedadSuelo"),
@@ -129,11 +134,19 @@ const els = {
   co2Preview: $("co2Preview"),
   humidityCalibrationWarning: $("humidityCalibrationWarning"),
   co2CalibrationWarning: $("co2CalibrationWarning"),
+  sensorAmbientCalibrationWarning: $("sensorAmbientCalibrationWarning"),
+  calibrationSensorType: $("calibrationSensorType"),
+  calibrationSensorStatus: $("calibrationSensorStatus"),
   temperatureCalibrationError: $("temperatureCalibrationError"),
   humidityCalibrationError: $("humidityCalibrationError"),
   co2CalibrationError: $("co2CalibrationError"),
   modeStatus: $("modeStatus"),
   currentMode: $("currentMode"),
+  sensorAmbientTypeSelect: $("sensorAmbientTypeSelect"),
+  sensorAmbientApplied: $("sensorAmbientApplied"),
+  sensorAmbientStatus: $("sensorAmbientStatus"),
+  sensorAmbientConfigStatus: $("sensorAmbientConfigStatus"),
+  saveSensorAmbientType: $("saveSensorAmbientType"),
   modeSelect: $("modeSelect"),
   applyMode: $("applyMode"),
   manualControlHint: $("manualControlHint"),
@@ -231,6 +244,33 @@ function formatValue(value) {
   return `${value}`;
 }
 
+function normalizeSensorAmbientType(value) {
+  return String(value || "").toUpperCase() === "DHT22" ? "DHT22" : "DHT11";
+}
+
+function getSensorAmbientStatus(latest = {}) {
+  const status = String(latest.sensorAmbientStatus || "").toLowerCase();
+  if (["ok", "invalid", "timeout", "disconnected", "saturated"].includes(status)) return status;
+  if (isHumiditySaturated(latest)) return "saturated";
+  return latest.humedadAmbiente === null || latest.humedadAmbiente === undefined ? "disconnected" : "ok";
+}
+
+function statusMeta(status) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "ok") return { text: "OK", chip: "chip-ok" };
+  if (normalized === "saturated") return { text: "Saturado", chip: "chip-error" };
+  if (normalized === "invalid") return { text: "Inválido", chip: "chip-error" };
+  if (normalized === "timeout") return { text: "Timeout", chip: "chip-warning" };
+  if (normalized === "disconnected") return { text: "Desconectado", chip: "chip-muted" };
+  return { text: "No disponible", chip: "chip-muted" };
+}
+
+function setChip(el, text, chipClass = "chip-muted") {
+  if (!el) return;
+  el.textContent = text;
+  el.className = `status-chip ${chipClass}`;
+}
+
 
 function toNumberOrNull(value) {
   const parsed = Number(value);
@@ -259,8 +299,14 @@ function updateCalibrationView() {
 
   const humidityOffset = toNumberOrNull(calibration.humidityOffset) ?? 0;
   const co2Offset = toNumberOrNull(calibration.co2Offset) ?? 0;
+  const ambientStatus = getSensorAmbientStatus(latest);
+  const ambientMeta = statusMeta(ambientStatus);
+  const ambientType = normalizeSensorAmbientType(latest.sensorAmbientTypeApplied ?? (state.config || {}).sensorAmbientType);
+  els.calibrationSensorType.textContent = ambientType;
+  setChip(els.calibrationSensorStatus, ambientMeta.text, ambientMeta.chip);
   setCalibrationWarning(els.humidityCalibrationWarning, Math.abs(humidityOffset) > 10 ? "Offset de humedad alto. Recomendado resetear si se cambió el sensor." : "");
   setCalibrationWarning(els.co2CalibrationWarning, Math.abs(co2Offset) > 500 ? "Offset CO2 alto. Verificar con instrumento patrón." : "");
+  setCalibrationWarning(els.sensorAmbientCalibrationWarning, ["invalid", "timeout", "disconnected", "saturated"].includes(ambientStatus) ? "Aviso: el sensor ambiente no está en estado OK. No calibres temperatura/humedad hasta estabilizar o secar el sensor." : "");
   updateDataQualityView();
 
   if (!hasCalibration) {
@@ -413,7 +459,10 @@ function formatUptime(ms) {
 }
 
 function normalizeTimestamp(value) {
-  if (!value || Number.isNaN(Number(value))) return null;
+  if (!value) return null;
+  const parsedDate = typeof value === "string" && Number.isNaN(Number(value)) ? Date.parse(value) : null;
+  if (Number.isFinite(parsedDate)) return parsedDate;
+  if (Number.isNaN(Number(value))) return null;
   const n = Number(value);
   return n < 1000000000000 ? n * 1000 : n;
 }
@@ -454,7 +503,7 @@ function updateRefreshTime() {
 }
 
 function getStateClass(metric, value) {
-  if (value === null || value === undefined || Number.isNaN(value)) return "";
+  if (value === null || value === undefined || Number.isNaN(value)) return "state-unavailable";
   if (metric === "temperatura") {
     if (value > 34 || value < 8) return "state-critical";
     if (value > 30 || value < 12) return "state-warn";
@@ -479,7 +528,7 @@ function getStateClass(metric, value) {
 }
 
 function paintMetricState(el, metric, value) {
-  el.classList.remove("state-good", "state-warn", "state-critical");
+  el.classList.remove("state-good", "state-warn", "state-critical", "state-unavailable");
   const stateClass = getStateClass(metric, Number(value));
   if (stateClass) el.classList.add(stateClass);
 }
@@ -535,6 +584,8 @@ function renderData(data) {
   els.co2.textContent = formatValue(data.co2);
   els.uptime.textContent = formatUptime(data.uptimeMs);
 
+  updateCompactStatusView();
+
   paintMetricState(els.temperatura, "temperatura", data.temperatura);
   paintMetricState(els.humedadAmbiente, "humedadAmbiente", data.humedadAmbiente);
   paintMetricState(els.co2, "co2", data.co2);
@@ -552,6 +603,55 @@ function renderData(data) {
   updateReadingAge();
   updateDataQualityView();
   renderAutomaticDecision();
+}
+
+function updateCompactStatusView() {
+  const latest = state.latest || {};
+  const config = state.config || {};
+  const calibration = state.calibration || {};
+  const mode = latest.mode ?? config.mode ?? "--";
+  const ambientType = normalizeSensorAmbientType(latest.sensorAmbientTypeApplied ?? config.sensorAmbientType);
+  const ambientStatus = getSensorAmbientStatus(latest);
+  const co2Quality = assessCo2Quality(latest, state.recentHistory.length ? state.recentHistory : [latest], calibration);
+  const calibrationEnabled = calibration && typeof calibration === "object" ? calibration.enabled !== false : null;
+  const lastValid = latest.sensorAmbientLastValidTs ?? latest.lastValidTs ?? latest.timestamp;
+  setChip(els.homeModeChip, mode, mode === "--" ? "chip-muted" : "chip-ok");
+  setChip(els.homeSensorTypeChip, ambientType, statusMeta(ambientStatus).chip);
+  setChip(els.homeCo2StatusChip, co2Quality.status, co2Quality.level === "stable" ? "chip-ok" : co2Quality.level === "suspect" || co2Quality.level === "calibration" ? "chip-warning" : co2Quality.level === "invalid" ? "chip-error" : "chip-muted");
+  setChip(els.homeCalibrationChip, calibrationEnabled === null ? "--" : calibrationEnabled ? "Sí" : "No", calibrationEnabled ? "chip-ok" : "chip-muted");
+  setChip(els.homeLastValidChip, formatTimestamp(lastValid), lastValid ? "chip-ok" : "chip-muted");
+}
+
+function renderSensorAmbientConfig() {
+  const config = state.config || {};
+  const latest = state.latest || {};
+  const configured = normalizeSensorAmbientType(config.sensorAmbientType);
+  const applied = normalizeSensorAmbientType(latest.sensorAmbientTypeApplied ?? configured);
+  const status = getSensorAmbientStatus(latest);
+  const meta = statusMeta(status);
+  els.sensorAmbientTypeSelect.value = configured;
+  els.sensorAmbientApplied.value = applied;
+  els.sensorAmbientStatus.value = meta.text;
+  els.sensorAmbientStatus.className = `input-${meta.chip}`;
+  els.sensorAmbientConfigStatus.textContent = `Configurado en Firebase: ${configured} · aplicado por ESP32: ${applied}`;
+  updateCompactStatusView();
+}
+
+async function saveSensorAmbientType() {
+  const sensorAmbientType = normalizeSensorAmbientType(els.sensorAmbientTypeSelect.value);
+  try {
+    const payload = { sensorAmbientType, updatedAtWeb: new Date().toISOString(), updatedFrom: "dashboard_sensor_ambient_type" };
+    const response = await fetch(buildUrl(configPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    diag.lastPatchStatus = `HTTP ${response.status}`;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    els.sensorAmbientConfigStatus.textContent = `Tipo de sensor guardado: ${sensorAmbientType}. El ESP32 lo aplicará en la próxima lectura de config.`;
+    updateDiagnostics();
+    await fetchConfig();
+    await fetchLatest();
+  } catch (error) {
+    console.error("Error guardando sensorAmbientType:", error);
+    els.sensorAmbientConfigStatus.textContent = "Error guardando tipo de sensor ambiente";
+  }
 }
 
 async function fetchLatest() {
@@ -1225,6 +1325,7 @@ function renderConfig(config) {
     }
   });
   els.setpointsStatus.textContent = "SETs listos para edición";
+  renderSensorAmbientConfig();
   renderSetSummary();
   renderAutomaticDecision();
 }
@@ -1299,6 +1400,7 @@ on(els.resetHumidity, "click", () => resetSensorCalibration("humidity"));
 on(els.resetCo2, "click", () => resetSensorCalibration("co2"));
 on(els.enableCalibration, "click", enableCalibration);
 on(els.disableCalibration, "click", disableCalibration);
+on(els.saveSensorAmbientType, "click", saveSensorAmbientType);
 on(els.applyMode, "click", applyMode);
 on(els.modeSelect, "change", () => updateTimerVisibility(getTimerMode(els.modeSelect.value)));
 on(els.timerMutualExclusion, "change", updateTimerMutualNote);
@@ -1348,7 +1450,7 @@ function initPage() {
   }
   if (PAGE === "configuracion") {
     runEvery(fetchConfig, historyRefreshMs);
-    fetchLatest();
+    runEvery(fetchLatest, refreshMs);
     return;
   }
   if (PAGE === "admin") {
