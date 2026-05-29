@@ -133,3 +133,18 @@ body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background
 @media (max-width: 460px) {
   .timer-grid, .timer-cards-grid { grid-template-columns: 1fr; }
 }
+
+.sensor-quality-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap:.75rem; margin-top:.9rem; }
+.sensor-quality-card { border:1px solid #dbe9e2; border-left:5px solid #2ca76b; border-radius:14px; padding:.8rem; background:#f8fdf9; box-shadow:0 4px 12px rgba(20,83,45,.08); }
+.sensor-quality-card h4 { margin:.1rem 0 .35rem; color:var(--green-dark); }
+.sensor-quality-state { margin:.2rem 0; font-weight:800; }
+.sensor-quality-card.quality-stable { border-left-color:#16a34a; }
+.sensor-quality-card.quality-missing { border-left-color:#64748b; background:#f8fafc; }
+.sensor-quality-card.quality-suspect { border-left-color:#f59e0b; background:#fffbeb; }
+.sensor-quality-card.quality-invalid { border-left-color:#dc2626; background:#fef2f2; }
+.sensor-quality-card.quality-calibration { border-left-color:#8b5cf6; background:#f5f3ff; }
+.data-quality-note { margin:.7rem 0 0; padding:.55rem .7rem; border-radius:10px; background:#edf8f1; }
+.checkbox-label { flex-direction:row !important; align-items:center; gap:.55rem !important; min-height:42px; }
+.checkbox-label input { width:18px; height:18px; accent-color:#166534; }
+.calibration-warning { margin:.4rem 0; padding:.55rem .65rem; border-radius:10px; background:#fff7d6; color:#6b4d00; font-weight:700; }
+.calibration-warning[hidden] { display:none; }
