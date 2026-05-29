@@ -47,10 +47,17 @@
       <section class="section-block">
         <h3 class="section-title">Sensores principales · Fructificación Melena de León</h3>
         <div class="metrics-grid">
-          <article class="metric-card card"><h3>Temperatura</h3><p class="metric-value" id="temperatura">--</p><p class="metric-unit">°C</p></article>
-          <article class="metric-card card"><h3>Humedad ambiente</h3><p class="metric-value" id="humedadAmbiente">--</p><p class="metric-unit">%</p></article>
-          <article class="metric-card card"><h3>CO2</h3><p class="metric-value" id="co2">--</p><p class="metric-unit">ppm</p></article>
-          <article class="metric-card card"><h3>Tiempo encendido</h3><p class="metric-value" id="uptime">--</p><p class="metric-unit">hh:mm:ss</p></article>
+          <article class="metric-card card" data-metric="temperatura"><div class="metric-header"><span class="metric-icon" aria-hidden="true">🌡️</span><h3>Temperatura</h3></div><p class="metric-value" id="temperatura">--</p><p class="metric-unit">°C</p></article>
+          <article class="metric-card card" data-metric="humedad"><div class="metric-header"><span class="metric-icon" aria-hidden="true">💧</span><h3>Humedad ambiente</h3></div><p class="metric-value" id="humedadAmbiente">--</p><p class="metric-unit">%</p></article>
+          <article class="metric-card card" data-metric="co2"><div class="metric-header"><span class="metric-icon" aria-hidden="true">☁️</span><h3>CO2</h3></div><p class="metric-value" id="co2">--</p><p class="metric-unit">ppm</p></article>
+          <article class="metric-card card" data-metric="uptime"><div class="metric-header"><span class="metric-icon" aria-hidden="true">⏱️</span><h3>Tiempo encendido</h3></div><p class="metric-value" id="uptime">--</p><p class="metric-unit">hh:mm:ss</p></article>
+        </div>
+        <div class="compact-status-grid card" aria-live="polite">
+          <div><span class="compact-label">Modo</span><strong id="homeModeChip" class="status-chip chip-muted">--</strong></div>
+          <div><span class="compact-label">Sensor ambiente</span><strong id="homeSensorTypeChip" class="status-chip chip-muted">DHT11</strong></div>
+          <div><span class="compact-label">CO2</span><strong id="homeCo2StatusChip" class="status-chip chip-muted">Sin lectura</strong></div>
+          <div><span class="compact-label">Calibración</span><strong id="homeCalibrationChip" class="status-chip chip-muted">--</strong></div>
+          <div><span class="compact-label">Última válida</span><strong id="homeLastValidChip" class="status-chip chip-muted">--</strong></div>
         </div>
         <div class="sensor-quality-grid" aria-live="polite">
           <article class="sensor-quality-card quality-stable" id="temperatureQualityCard">
@@ -76,7 +83,7 @@
         <h3 class="section-title">Actuadores</h3>
         <div class="actuator-grid">
           <article class="actuator-item">
-            <h4>Humidificador</h4>
+            <h4><span class="actuator-icon" aria-hidden="true">💨</span> Humidificador</h4>
             <p class="muted actuator-subtitle">Humidificador ultrasónico</p>
             <p id="relay1State" class="muted">Estado: --</p>
             <div class="button-group">
@@ -85,7 +92,7 @@
             </div>
           </article>
           <article class="actuator-item">
-            <h4>Ventilación</h4>
+            <h4><span class="actuator-icon" aria-hidden="true">🌀</span> Ventilación</h4>
             <p class="muted actuator-subtitle">Intractor + extractor</p>
             <p id="relay2State" class="muted">Estado: --</p>
             <div class="button-group">

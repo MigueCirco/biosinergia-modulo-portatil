@@ -37,7 +37,12 @@
       <section class="card section-block">
         <h3 class="section-title">Calibración de sensores</h3>
         <p id="calibrationStatus" class="muted">Cargando calibración...</p>
-        <p class="muted calibration-note">Recomendación: si un sensor está desconectado o húmedo, no calibrarlo. Calibrar solo los sensores con lectura estable.</p>
+        <p class="muted calibration-note">Recomendación: si el sensor ambiente está saturado, mojado, desconectado o con lecturas inestables, no calibrarlo. Calibrar solo con lecturas estables.</p>
+        <div class="calibration-context-card">
+          <span>Sensor ambiente actual: <strong id="calibrationSensorType">--</strong></span>
+          <span>Estado: <strong id="calibrationSensorStatus" class="status-chip chip-muted">--</strong></span>
+        </div>
+        <p id="sensorAmbientCalibrationWarning" class="calibration-warning" hidden></p>
         <p id="calibrationModeHint" class="muted calibration-mode-hint"></p>
         <div class="download-grid calibration-toggle-actions">
           <button id="enableCalibration" class="btn btn-on">Activar calibración</button>
