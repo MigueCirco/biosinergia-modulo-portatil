@@ -34,53 +34,126 @@
     </header>
 
     <main class="container">
-      <section class="status-card card section-block">
-        <div>
-          <h3>Resumen del módulo</h3>
-          <p id="connectionStatus" class="status-pill status-pending">Cargando...</p>
-          <p id="lastReading" class="muted">Última medición del ESP32: --</p>
-          <p id="readingAge" class="muted">Hace -- segundos</p>
+      <section class="module-overview card section-block" aria-labelledby="moduleOverviewTitle">
+        <div class="module-overview-header">
+          <div>
+            <p class="eyebrow">Inicio</p>
+            <h3 id="moduleOverviewTitle">Estado actual del módulo</h3>
+            <p id="moduleModeMessage" class="module-mode-message">Esperando datos del modo activo...</p>
+          </div>
+          <div class="overall-status" id="overallStatusCard">
+            <span class="overall-label">Estado general</span>
+            <strong id="overallStatusText">Cargando...</strong>
+          </div>
         </div>
-        <p id="lastRefresh" class="muted">Última consulta de la web: --</p>
+
+        <div class="module-status-grid" aria-live="polite">
+          <div class="module-status-item">
+            <span>Conexión</span>
+            <strong id="connectionStatus" class="status-pill status-pending">Cargando...</strong>
+          </div>
+          <div class="module-status-item">
+            <span>Última medición ESP32</span>
+            <strong id="lastReading">--</strong>
+            <small id="readingAge">Hace -- segundos</small>
+          </div>
+          <div class="module-status-item">
+            <span>Última consulta web</span>
+            <strong id="lastRefresh">--</strong>
+          </div>
+          <div class="module-status-item">
+            <span>Modo activo</span>
+            <strong id="homeModeChip" class="status-chip chip-muted">--</strong>
+          </div>
+        </div>
+
+        <div class="hero-actuator-grid">
+          <article class="hero-actuator-card" id="homeHumidifierCard">
+            <span class="hero-actuator-icon" aria-hidden="true">💨</span>
+            <div>
+              <span>Humidificador</span>
+              <strong id="homeHumidifierState">--</strong>
+            </div>
+          </article>
+          <article class="hero-actuator-card" id="homeVentilationCard">
+            <span class="hero-actuator-icon" aria-hidden="true">🌀</span>
+            <div>
+              <span>Ventilación</span>
+              <strong id="homeVentilationState">--</strong>
+            </div>
+          </article>
+        </div>
       </section>
 
-      <section class="section-block">
-        <h3 class="section-title">Sensores principales · Fructificación Melena de León</h3>
-        <div class="metrics-grid">
-          <article class="metric-card card" data-metric="temperatura"><div class="metric-header"><span class="metric-icon" aria-hidden="true">🌡️</span><h3>Temperatura</h3></div><p class="metric-value" id="temperatura">--</p><p class="metric-unit">°C</p></article>
-          <article class="metric-card card" data-metric="humedad"><div class="metric-header"><span class="metric-icon" aria-hidden="true">💧</span><h3>Humedad ambiente</h3></div><p class="metric-value" id="humedadAmbiente">--</p><p class="metric-unit">%</p></article>
-          <article class="metric-card card" data-metric="co2"><div class="metric-header"><span class="metric-icon" aria-hidden="true">☁️</span><h3>CO2</h3></div><p class="metric-value" id="co2">--</p><p class="metric-unit">ppm</p></article>
-          <article class="metric-card card" data-metric="uptime"><div class="metric-header"><span class="metric-icon" aria-hidden="true">⏱️</span><h3>Tiempo encendido</h3></div><p class="metric-value" id="uptime">--</p><p class="metric-unit">hh:mm:ss</p></article>
+      <section class="section-block" aria-labelledby="mainSensorsTitle">
+        <div class="section-heading-row">
+          <div>
+            <p class="eyebrow">Lecturas principales</p>
+            <h3 id="mainSensorsTitle" class="section-title">Sensores principales</h3>
+          </div>
+          <p class="muted">Fructificación Melena de León</p>
         </div>
-        <div class="compact-status-grid card" aria-live="polite">
-          <div><span class="compact-label">Modo</span><strong id="homeModeChip" class="status-chip chip-muted">--</strong></div>
-          <div><span class="compact-label">Sensor ambiente</span><strong id="homeSensorTypeChip" class="status-chip chip-muted">DHT11</strong></div>
-          <div><span class="compact-label">CO2</span><strong id="homeCo2StatusChip" class="status-chip chip-muted">Sin lectura</strong></div>
-          <div><span class="compact-label">Calibración</span><strong id="homeCalibrationChip" class="status-chip chip-muted">--</strong></div>
-          <div><span class="compact-label">Última válida</span><strong id="homeLastValidChip" class="status-chip chip-muted">--</strong></div>
-        </div>
-        <div class="sensor-quality-grid" aria-live="polite">
-          <article class="sensor-quality-card quality-stable" id="temperatureQualityCard">
-            <h4>Estado temperatura</h4>
-            <p class="sensor-quality-state" id="temperatureQualityState">Sin lectura</p>
-            <p class="muted" id="temperatureQualityDetail">Esperando datos históricos para diagnosticar estabilidad.</p>
+        <div class="metrics-grid metrics-grid-home">
+          <article class="metric-card card" data-metric="temperatura">
+            <div class="metric-header"><span class="metric-icon" aria-hidden="true">🌡️</span><h3>Temperatura</h3></div>
+            <div class="metric-reading"><p class="metric-value" id="temperatura">--</p><p class="metric-unit">°C</p></div>
+            <p class="metric-state-label" id="temperatureMetricStatus">Sin lectura</p>
           </article>
-          <article class="sensor-quality-card quality-stable" id="humidityQualityCard">
-            <h4>Estado humedad ambiente</h4>
-            <p class="sensor-quality-state" id="humidityQualityState">Sin lectura</p>
-            <p class="muted" id="humidityQualityDetail">Esperando datos históricos para diagnosticar saturación o lectura congelada.</p>
+          <article class="metric-card card" data-metric="humedad">
+            <div class="metric-header"><span class="metric-icon" aria-hidden="true">💧</span><h3>Humedad ambiente</h3></div>
+            <div class="metric-reading"><p class="metric-value" id="humedadAmbiente">--</p><p class="metric-unit">%</p></div>
+            <p class="metric-state-label" id="humidityMetricStatus">Sin lectura</p>
           </article>
-          <article class="sensor-quality-card quality-stable" id="co2QualityCard">
-            <h4>Estado CO2</h4>
-            <p class="sensor-quality-state" id="co2QualityState">Sin lectura</p>
-            <p class="muted" id="co2QualityDetail">Esperando datos históricos para diagnosticar conexión y calibración.</p>
+          <article class="metric-card card" data-metric="co2">
+            <div class="metric-header"><span class="metric-icon" aria-hidden="true">☁️</span><h3>CO2</h3></div>
+            <div class="metric-reading"><p class="metric-value" id="co2">--</p><p class="metric-unit">ppm</p></div>
+            <p class="metric-state-label" id="co2MetricStatus">Sin lectura</p>
+          </article>
+          <article class="metric-card card" data-metric="uptime">
+            <div class="metric-header"><span class="metric-icon" aria-hidden="true">⏱️</span><h3>Tiempo encendido</h3></div>
+            <div class="metric-reading"><p class="metric-value" id="uptime">--</p><p class="metric-unit">hh:mm:ss</p></div>
+            <p class="metric-state-label state-info" id="uptimeMetricStatus">Esperando lectura</p>
           </article>
         </div>
-        <p class="muted data-quality-note">Los datos sospechosos no se eliminan de Firebase; solo se filtran visualmente para análisis.</p>
       </section>
 
-      <section class="card actuators section-block">
-        <h3 class="section-title">Actuadores</h3>
+      <section class="section-block interpretive-section" aria-labelledby="whatHappeningTitle">
+        <div class="section-heading-row">
+          <div>
+            <p class="eyebrow">Lectura simple</p>
+            <h3 id="whatHappeningTitle" class="section-title">¿Qué está pasando?</h3>
+          </div>
+        </div>
+        <div id="whatHappeningList" class="insight-grid" aria-live="polite">
+          <article class="insight-card info"><span aria-hidden="true">ℹ️</span><p>Esperando datos del módulo.</p></article>
+        </div>
+      </section>
+
+      <section class="section-block" aria-labelledby="alertsTitle">
+        <div class="section-heading-row">
+          <div>
+            <p class="eyebrow">Consejos interpretados</p>
+            <h3 id="alertsTitle" class="section-title">Alertas y consejos</h3>
+          </div>
+        </div>
+        <div id="homeAlertList" class="alert-card-grid" aria-live="polite">
+          <article class="home-alert-card info"><span aria-hidden="true">ℹ️</span><div><strong>Cargando diagnóstico</strong><p>Esperando lecturas para interpretar el estado.</p></div></article>
+        </div>
+      </section>
+
+      <section class="card section-block quick-actions-card" aria-labelledby="quickActionsTitle">
+        <h3 id="quickActionsTitle" class="section-title">Acciones rápidas</h3>
+        <div class="quick-actions-grid">
+          <a href="graficos.html">📈 Ver gráficos</a>
+          <a href="calibracion.html">🎚️ Ir a calibración</a>
+          <a href="configuracion.html">⚙️ Ir a configuración</a>
+          <a href="admin.html">🛠️ Ir a admin</a>
+        </div>
+      </section>
+
+      <section class="card actuators section-block secondary-actuators">
+        <h3 class="section-title">Control manual de actuadores</h3>
+        <p class="muted">Los botones solo se habilitan cuando el modo Manual está activo.</p>
         <div class="actuator-grid">
           <article class="actuator-item">
             <h4><span class="actuator-icon" aria-hidden="true">💨</span> Humidificador</h4>
@@ -103,30 +176,56 @@
         </div>
       </section>
 
-      <section class="card section-block mode-compact-card">
-        <h3 class="section-title">Modo actual</h3>
-        <p id="modeStatus" class="muted">Cargando configuración...</p>
-        <label class="compact-mode-label">Modo en configuración
-          <input id="currentMode" type="text" readonly value="--" />
-        </label>
-        <p id="manualControlHint" class="muted"></p>
-      </section>
-
-      <section class="summary-grid section-block">
-        <article class="card">
-          <h3 class="section-title">Decisión automática</h3>
-          <p id="autoDecisionStatus" class="muted">Esperando datos suficientes.</p>
-        </article>
-        <article class="card">
-          <h3 class="section-title">Resumen de SETs activos</h3>
-          <div id="activeSetSummary" class="set-summary-list">
-            <p>CO2: --</p>
-            <p>Humedad: --</p>
-            <p>Temperatura crítica: --</p>
-            <p>Exclusión mutua: --</p>
-          </div>
-        </article>
-      </section>
+      <details class="card section-block technical-details">
+        <summary>Ver detalles técnicos</summary>
+        <div class="compact-status-grid" aria-live="polite">
+          <div><span class="compact-label">Sensor ambiente</span><strong id="homeSensorTypeChip" class="status-chip chip-muted">DHT11</strong></div>
+          <div><span class="compact-label">CO2</span><strong id="homeCo2StatusChip" class="status-chip chip-muted">Sin lectura</strong></div>
+          <div><span class="compact-label">Calibración</span><strong id="homeCalibrationChip" class="status-chip chip-muted">--</strong></div>
+          <div><span class="compact-label">Última válida</span><strong id="homeLastValidChip" class="status-chip chip-muted">--</strong></div>
+        </div>
+        <div class="sensor-quality-grid" aria-live="polite">
+          <article class="sensor-quality-card quality-stable" id="temperatureQualityCard">
+            <h4>Estado temperatura</h4>
+            <p class="sensor-quality-state" id="temperatureQualityState">Sin lectura</p>
+            <p class="muted" id="temperatureQualityDetail">Esperando datos históricos para diagnosticar estabilidad.</p>
+          </article>
+          <article class="sensor-quality-card quality-stable" id="humidityQualityCard">
+            <h4>Estado humedad ambiente</h4>
+            <p class="sensor-quality-state" id="humidityQualityState">Sin lectura</p>
+            <p class="muted" id="humidityQualityDetail">Esperando datos históricos para diagnosticar saturación o lectura congelada.</p>
+          </article>
+          <article class="sensor-quality-card quality-stable" id="co2QualityCard">
+            <h4>Estado CO2</h4>
+            <p class="sensor-quality-state" id="co2QualityState">Sin lectura</p>
+            <p class="muted" id="co2QualityDetail">Esperando datos históricos para diagnosticar conexión y calibración.</p>
+          </article>
+        </div>
+        <div class="summary-grid section-block technical-summary-grid">
+          <article>
+            <h3 class="section-title">Decisión automática</h3>
+            <p id="autoDecisionStatus" class="muted">Esperando datos suficientes.</p>
+          </article>
+          <article>
+            <h3 class="section-title">Resumen de SETs activos</h3>
+            <div id="activeSetSummary" class="set-summary-list">
+              <p>CO2: --</p>
+              <p>Humedad: --</p>
+              <p>Temperatura crítica: --</p>
+              <p>Exclusión mutua: --</p>
+            </div>
+          </article>
+        </div>
+        <p class="muted data-quality-note">Los datos sospechosos no se eliminan de Firebase; solo se filtran visualmente para análisis.</p>
+        <div class="mode-compact-card">
+          <h3 class="section-title">Modo actual técnico</h3>
+          <p id="modeStatus" class="muted">Cargando configuración...</p>
+          <label class="compact-mode-label">Modo en configuración
+            <input id="currentMode" type="text" readonly value="--" />
+          </label>
+          <p id="manualControlHint" class="muted"></p>
+        </div>
+      </details>
 
       <section class="card section-block install-card">
         <h3 class="section-title">Instalar como app</h3>

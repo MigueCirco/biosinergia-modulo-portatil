@@ -75,6 +75,19 @@ const els = {
   homeCo2StatusChip: $("homeCo2StatusChip"),
   homeCalibrationChip: $("homeCalibrationChip"),
   homeLastValidChip: $("homeLastValidChip"),
+  overallStatusCard: $("overallStatusCard"),
+  overallStatusText: $("overallStatusText"),
+  moduleModeMessage: $("moduleModeMessage"),
+  homeHumidifierCard: $("homeHumidifierCard"),
+  homeHumidifierState: $("homeHumidifierState"),
+  homeVentilationCard: $("homeVentilationCard"),
+  homeVentilationState: $("homeVentilationState"),
+  temperatureMetricStatus: $("temperatureMetricStatus"),
+  humidityMetricStatus: $("humidityMetricStatus"),
+  co2MetricStatus: $("co2MetricStatus"),
+  uptimeMetricStatus: $("uptimeMetricStatus"),
+  whatHappeningList: $("whatHappeningList"),
+  homeAlertList: $("homeAlertList"),
   temperatura: $("temperatura"),
   humedadAmbiente: $("humedadAmbiente"),
   humedadSuelo: $("humedadSuelo"),
@@ -477,6 +490,158 @@ function renderQualityCard(cardEl, stateEl, detailEl, quality) {
   detailEl.textContent = quality.detail;
 }
 
+
+// Construye textos y estados visuales simples para la página de Inicio sin modificar datos ni comandos.
+function modeLabel(mode) {
+  const normalized = getTimerMode(mode);
+  if (normalized === "manual") return "Manual";
+  if (normalized === "timer") return "Timer";
+  return "Automático";
+}
+
+function modeMessage(mode) {
+  return `El módulo está respondiendo al modo ${modeLabel(mode)}`;
+}
+
+function relayLabel(value) {
+  if (value === true) return "ON";
+  if (value === false) return "OFF";
+  return "--";
+}
+
+function updateHeroActuator(cardEl, stateEl, value) {
+  const label = relayLabel(value);
+  stateEl.textContent = label;
+  cardEl.classList.remove("is-on", "is-off", "is-unknown");
+  cardEl.classList.add(value === true ? "is-on" : value === false ? "is-off" : "is-unknown");
+}
+
+function metricStatusFromQuality(metric, quality, latest, config) {
+  const level = quality?.level || "missing";
+  if (level === "missing") return { label: "Sin lectura", kind: "muted" };
+  if (level === "invalid") return { label: quality.status === "Posible saturación" ? "Posible saturación" : "Valor sospechoso", kind: "error" };
+  if (level === "suspect" || level === "calibration") return { label: "Valor sospechoso", kind: "warning" };
+  const valueMap = {
+    temperatura: toNumberOrNull(latest?.temperatura),
+    humedad: toNumberOrNull(latest?.humedadAmbiente),
+    co2: toNumberOrNull(latest?.co2)
+  };
+  const value = valueMap[metric];
+  if (value === null) return { label: "Sin lectura", kind: "muted" };
+  if (metric === "temperatura") {
+    const min = toNumberOrNull(config?.tempMin) ?? 12;
+    const max = toNumberOrNull(config?.tempCritical) ?? toNumberOrNull(config?.tempMax) ?? 30;
+    if (value < min) return { label: "Baja", kind: "warning" };
+    if (value > max) return { label: "Alta", kind: "warning" };
+  }
+  if (metric === "humedad") {
+    const min = toNumberOrNull(config?.humMin) ?? 80;
+    const max = toNumberOrNull(config?.humMax) ?? 95;
+    if (value < min) return { label: "Baja", kind: "warning" };
+    if (value > max) return { label: "Alta", kind: "warning" };
+  }
+  if (metric === "co2") {
+    const min = toNumberOrNull(config?.co2Min) ?? 400;
+    const max = toNumberOrNull(config?.co2Max) ?? 1200;
+    if (value < min) return { label: "Baja", kind: "warning" };
+    if (value > max) return { label: "Alta", kind: "warning" };
+  }
+  return { label: "Dentro de rango", kind: "ok" };
+}
+
+function setMetricStatus(el, status) {
+  el.textContent = status.label;
+  el.className = `metric-state-label state-${status.kind}`;
+}
+
+function makeStatusItem(text, className, icon) {
+  const article = document.createElement("article");
+  article.className = className;
+  const span = document.createElement("span");
+  span.setAttribute("aria-hidden", "true");
+  span.textContent = icon;
+  const p = document.createElement("p");
+  p.textContent = text;
+  article.append(span, p);
+  return article;
+}
+
+function makeAlertCard(title, detail, tone, icon) {
+  const article = document.createElement("article");
+  article.className = `home-alert-card ${tone}`;
+  const span = document.createElement("span");
+  span.setAttribute("aria-hidden", "true");
+  span.textContent = icon;
+  const body = document.createElement("div");
+  const strong = document.createElement("strong");
+  strong.textContent = title;
+  const p = document.createElement("p");
+  p.textContent = detail;
+  body.append(strong, p);
+  article.append(span, body);
+  return article;
+}
+
+function getHomeInterpretation(latest = {}, config = {}, qualities = {}) {
+  const mode = getTimerMode(latest.mode ?? config.mode);
+  const statuses = {
+    temperatura: metricStatusFromQuality("temperatura", qualities.temperature, latest, config),
+    humedad: metricStatusFromQuality("humedad", qualities.humidity, latest, config),
+    co2: metricStatusFromQuality("co2", qualities.co2, latest, config)
+  };
+  const problemCount = Object.values(qualities).filter((quality) => ["invalid", "missing"].includes(quality?.level)).length;
+  const warningCount = Object.values(statuses).filter((status) => status.kind === "warning").length + Object.values(qualities).filter((quality) => ["suspect", "calibration"].includes(quality?.level)).length;
+  const overall = problemCount > 0 ? { label: "Revisar sensor", tone: "error" } : warningCount > 0 ? { label: "Atención", tone: "warning" } : { label: "Operando normal", tone: "ok" };
+  const insights = [
+    `El sistema está funcionando en modo ${modeLabel(mode)}`,
+    `El humidificador está ${relayLabel(latest.relay1) === "ON" ? "encendido" : relayLabel(latest.relay1) === "OFF" ? "apagado" : "sin estado confirmado"}`,
+    `La ventilación está ${relayLabel(latest.relay2) === "ON" ? "encendida" : relayLabel(latest.relay2) === "OFF" ? "apagada" : "sin estado confirmado"}`
+  ];
+  if (statuses.humedad.label === "Alta") insights.unshift("La humedad está alta en este momento");
+  if (statuses.humedad.label === "Baja") insights.unshift("La humedad está baja en este momento");
+  if (statuses.temperatura.label === "Alta") insights.unshift("La temperatura está alta en este momento");
+  if (statuses.temperatura.label === "Baja") insights.unshift("La temperatura está baja en este momento");
+  if (statuses.co2.label === "Alta") insights.unshift("El CO2 está alto en este momento");
+  if (qualities.co2?.level && qualities.co2.level !== "stable") insights.push("El sensor de CO2 requiere revisión");
+
+  const alerts = [];
+  alerts.push(statuses.temperatura.kind === "ok" ? { title: "Temperatura estable", detail: "La lectura principal de temperatura está dentro del rango esperado.", tone: "ok", icon: "✅" } : { title: `Temperatura ${statuses.temperatura.label.toLowerCase()}`, detail: qualities.temperature?.detail || "Revisar la lectura de temperatura.", tone: statuses.temperatura.kind === "error" ? "error" : "warning", icon: statuses.temperatura.kind === "error" ? "🚨" : "⚠️" });
+  alerts.push(statuses.humedad.kind === "ok" ? { title: "Humedad estable", detail: "La humedad ambiente está dentro del rango esperado.", tone: "ok", icon: "✅" } : { title: statuses.humedad.label === "Alta" ? "Humedad muy alta" : `Humedad ${statuses.humedad.label.toLowerCase()}`, detail: qualities.humidity?.detail || "Revisar la lectura de humedad ambiente.", tone: statuses.humedad.kind === "error" ? "error" : "warning", icon: statuses.humedad.kind === "error" ? "🚨" : "⚠️" });
+  alerts.push(statuses.co2.kind === "ok" ? { title: "CO2 estable", detail: "La lectura de CO2 está dentro del rango esperado.", tone: "ok", icon: "✅" } : { title: "Revisar sensor de CO2", detail: qualities.co2?.detail || "La lectura de CO2 necesita atención.", tone: statuses.co2.kind === "error" ? "error" : "warning", icon: statuses.co2.kind === "error" ? "🚨" : "⚠️" });
+  alerts.push(overall.tone === "ok" ? { title: "Sistema operando correctamente", detail: modeMessage(mode), tone: "ok", icon: "🌱" } : { title: "Atención del módulo", detail: "Hay al menos una lectura o sensor que conviene revisar.", tone: overall.tone, icon: overall.tone === "error" ? "🔴" : "🟡" });
+  if (mode === "timer") alerts.push({ title: "Modo Timer activo", detail: "Los ciclos dependen de la configuración de timer guardada.", tone: "info", icon: "⏱️" });
+
+  return { mode, statuses, overall, insights, alerts };
+}
+
+function renderHomeOverview() {
+  const latest = state.latest || {};
+  const config = state.config || {};
+  const records = state.recentHistory.length ? state.recentHistory : [latest];
+  const calibration = state.calibration || {};
+  const qualities = {
+    temperature: assessTemperatureQuality(latest, records),
+    humidity: assessHumidityQuality(latest, records, calibration),
+    co2: assessCo2Quality(latest, records, calibration)
+  };
+  const view = getHomeInterpretation(latest, config, qualities);
+
+  els.moduleModeMessage.textContent = modeMessage(view.mode);
+  els.overallStatusText.textContent = view.overall.label;
+  els.overallStatusCard.className = `overall-status tone-${view.overall.tone}`;
+  setChip(els.homeModeChip, modeLabel(view.mode), view.mode === "manual" ? "chip-warning" : "chip-ok");
+  updateHeroActuator(els.homeHumidifierCard, els.homeHumidifierState, latest.relay1);
+  updateHeroActuator(els.homeVentilationCard, els.homeVentilationState, latest.relay2);
+
+  setMetricStatus(els.temperatureMetricStatus, view.statuses.temperatura);
+  setMetricStatus(els.humidityMetricStatus, view.statuses.humedad);
+  setMetricStatus(els.co2MetricStatus, view.statuses.co2);
+  setMetricStatus(els.uptimeMetricStatus, latest.uptimeMs === null || latest.uptimeMs === undefined ? { label: "Sin lectura", kind: "muted" } : { label: "Activo", kind: "ok" });
+
+  els.whatHappeningList.replaceChildren(...view.insights.slice(0, 6).map((text) => makeStatusItem(text, "insight-card info", "ℹ️")));
+  els.homeAlertList.replaceChildren(...view.alerts.map((alert) => makeAlertCard(alert.title, alert.detail, alert.tone, alert.icon)));
+}
+
 function updateDataQualityView() {
   const latest = state.latest || {};
   const records = state.recentHistory.length ? state.recentHistory : [latest];
@@ -484,6 +649,7 @@ function updateDataQualityView() {
   renderQualityCard(els.temperatureQualityCard, els.temperatureQualityState, els.temperatureQualityDetail, assessTemperatureQuality(latest, records));
   renderQualityCard(els.humidityQualityCard, els.humidityQualityState, els.humidityQualityDetail, assessHumidityQuality(latest, records, calibration));
   renderQualityCard(els.co2QualityCard, els.co2QualityState, els.co2QualityDetail, assessCo2Quality(latest, records, calibration));
+  renderHomeOverview();
 }
 
 function jsonToCsv(list) {
@@ -574,7 +740,7 @@ function setStatus(text, cssClass) {
 }
 
 function updateRefreshTime() {
-  els.lastRefresh.textContent = `Última consulta de la web: ${formatTimestamp(Date.now())}`;
+  els.lastRefresh.textContent = formatTimestamp(Date.now());
 }
 
 function getStateClass(metric, value) {
@@ -702,7 +868,7 @@ async function requestCo2Reset() {
 
 function renderData(data) {
   if (!data || typeof data !== "object") {
-    setStatus("Sin datos", "status-empty");
+    setStatus("Sin conexión", "status-empty");
     return;
   }
 
@@ -729,10 +895,11 @@ function renderData(data) {
   document.querySelectorAll('[data-relay="relay2"]').forEach((b) => b.classList.toggle("active", b.dataset.value === String(relay2On)));
 
   diag.lastReadingTimestamp = data.timestamp ?? null;
-  els.lastReading.textContent = `Última medición del ESP32: ${formatTimestamp(data.timestamp)}`;
+  els.lastReading.textContent = formatTimestamp(data.timestamp);
   updateReadingAge();
   updateDataQualityView();
   renderAutomaticDecision();
+  renderHomeOverview();
 }
 
 function updateCompactStatusView() {
@@ -800,7 +967,7 @@ async function fetchLatest() {
     updateDiagnostics();
   } catch (error) {
     console.error("Error al consultar latest:", error);
-    setStatus("Error", "status-error");
+    setStatus("Sin conexión", "status-error");
     updateRefreshTime();
     updateDiagnostics();
   }
@@ -1076,7 +1243,7 @@ async function sendRelayCommand(relayName, relayValue) {
     await fetchLatest();
   } catch (error) {
     console.error("Error al enviar comando:", error);
-    setStatus("Error", "status-error");
+    setStatus("Sin conexión", "status-error");
     updateDiagnostics();
   }
 }
@@ -1755,6 +1922,7 @@ function renderConfig(config) {
   renderSensorAmbientConfig();
   renderSetSummary();
   renderAutomaticDecision();
+  renderHomeOverview();
 }
 
 async function fetchConfig() {
