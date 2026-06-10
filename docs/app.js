@@ -8,6 +8,7 @@ const DEVICE_ID = "biosinergia_001";
 // Si usas token, agrégalo aquí. Para pruebas abiertas puede quedar vacío.
 const FIREBASE_AUTH = "";
 
+const WEB_VERSION = "BioSinergia Web v1.6.0";
 
 const PAGE = document.body?.dataset?.page || "home";
 const noop = () => {};
@@ -1724,16 +1725,78 @@ function initPage() {
   }
 }
 
-initPage();
+function updateWebVersionLabel() {
+  document.querySelectorAll(".site-footer").forEach((footer) => {
+    if (!footer.querySelector(".web-version")) {
+      const separator = document.createElement("span");
+      separator.className = "footer-separator";
+      separator.textContent = " · ";
+      const version = document.createElement("span");
+      version.className = "web-version";
+      version.textContent = WEB_VERSION;
+      footer.append(separator, version);
+    }
+  });
 
+  const diagnosticVersion = document.getElementById("diagWebVersion");
+  if (diagnosticVersion) {
+    diagnosticVersion.textContent = WEB_VERSION;
+  }
+}
 
-if ("serviceWorker" in navigator) {
+function showUpdateNotice(registration) {
+  if (!registration?.waiting || document.getElementById("pwaUpdateNotice")) return;
+
+  const notice = document.createElement("div");
+  notice.id = "pwaUpdateNotice";
+  notice.className = "pwa-update-notice";
+  notice.setAttribute("role", "status");
+  notice.setAttribute("aria-live", "polite");
+  notice.innerHTML = `
+    <p>Hay una nueva versión de BioSinergia disponible.</p>
+    <button id="pwaUpdateNow" class="btn btn-on" type="button">Actualizar ahora</button>
+  `;
+  document.body.appendChild(notice);
+
+  document.getElementById("pwaUpdateNow")?.addEventListener("click", () => {
+    registration.waiting?.postMessage({ type: "SKIP_WAITING" });
+  });
+}
+
+function initServiceWorkerUpdates() {
+  if (!("serviceWorker" in navigator)) return;
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js")
       .then((registration) => {
+        showUpdateNotice(registration);
+        registration.update().catch((error) => {
+          console.warn("No se pudo buscar actualización del Service Worker:", error);
+        });
+
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              showUpdateNotice(registration);
+            }
+          });
+        });
       })
       .catch((error) => {
         console.warn("No se pudo registrar Service Worker:", error);
       });
   });
 }
+
+initPage();
+updateWebVersionLabel();
+initServiceWorkerUpdates();
