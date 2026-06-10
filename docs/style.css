@@ -263,3 +263,12 @@ body[data-page="admin"] .site-nav a[data-nav="admin"] { background: var(--white)
     max-width: none;
   }
 }
+
+.campaign-card { border-left: 5px solid #2ca76b; }
+.campaign-summary-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap:.55rem .9rem; margin:.85rem 0; padding:.85rem; border:1px solid #dbe9e2; border-radius:14px; background:#fbfefc; }
+.campaign-summary-grid p { margin:0; }
+.campaign-actions { margin-top:.85rem; }
+.btn-danger { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; opacity:1; }
+.btn-danger:hover { background:#fecaca; }
+.campaign-result-list { margin:.85rem 0 0; padding:.85rem .85rem .85rem 2rem; border-radius:14px; background:#f0fdf4; border:1px solid #bbf7d0; color:#14532d; font-weight:700; }
+.campaign-result-list li { margin:.25rem 0; }
