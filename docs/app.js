@@ -134,6 +134,11 @@ const els = {
   co2Preview: $("co2Preview"),
   humidityCalibrationWarning: $("humidityCalibrationWarning"),
   co2CalibrationWarning: $("co2CalibrationWarning"),
+  co2LatestStatus: $("co2LatestStatus"),
+  co2ResetLatestStatus: $("co2ResetLatestStatus"),
+  co2ResetLastAt: $("co2ResetLastAt"),
+  co2ResetRequestStatus: $("co2ResetRequestStatus"),
+  requestCo2Reset: $("requestCo2Reset"),
   sensorAmbientCalibrationWarning: $("sensorAmbientCalibrationWarning"),
   calibrationSensorType: $("calibrationSensorType"),
   calibrationSensorStatus: $("calibrationSensorStatus"),
@@ -230,6 +235,7 @@ const state = {
   latest: null,
   calibration: null,
   pendingCalibrationBySensor: {},
+  co2ResetWaiting: false,
   config: null,
   recentHistory: []
 };
@@ -258,11 +264,24 @@ function getSensorAmbientStatus(latest = {}) {
 function statusMeta(status) {
   const normalized = String(status || "").toLowerCase();
   if (normalized === "ok") return { text: "OK", chip: "chip-ok" };
-  if (normalized === "saturated") return { text: "Saturado", chip: "chip-error" };
+  if (normalized === "recovering") return { text: "Recuperando", chip: "chip-warning" };
+  if (normalized === "invalid_zero") return { text: "Inválido: cero", chip: "chip-error" };
+  if (normalized === "stuck_or_saturated") return { text: "Clavado/saturado", chip: "chip-error" };
   if (normalized === "invalid") return { text: "Inválido", chip: "chip-error" };
+  if (normalized === "saturated") return { text: "Saturado", chip: "chip-error" };
   if (normalized === "timeout") return { text: "Timeout", chip: "chip-warning" };
   if (normalized === "disconnected") return { text: "Desconectado", chip: "chip-muted" };
   return { text: "No disponible", chip: "chip-muted" };
+}
+
+function co2ResetStatusMeta(status) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "done") return { text: "Completado", chip: "chip-ok" };
+  if (normalized === "requested") return { text: "Solicitado", chip: "chip-warning" };
+  if (normalized === "recovering") return { text: "Recuperando", chip: "chip-warning" };
+  if (normalized === "auto_recovering") return { text: "Auto-recuperando", chip: "chip-warning" };
+  if (normalized === "error") return { text: "Error", chip: "chip-error" };
+  return { text: status ? String(status) : "Sin reinicio", chip: "chip-muted" };
 }
 
 function setChip(el, text, chipClass = "chip-muted") {
@@ -292,6 +311,7 @@ function updateCalibrationView() {
   els.temperaturaCal.textContent = formatValue(latest.temperatura);
   els.humedadCal.textContent = formatValue(latest.humedadAmbiente);
   els.co2Cal.textContent = formatValue(latest.co2);
+  renderCo2RecoveryStatus(latest);
 
   els.temperatureOffsetCurrent.textContent = formatValue(calibration.temperatureOffset ?? 0);
   els.humidityOffsetCurrent.textContent = formatValue(calibration.humidityOffset ?? 0);
@@ -380,6 +400,10 @@ function assessCo2Quality(latest, records, calibration) {
   const co2 = toNumberOrNull(latest?.co2);
   const co2Raw = toNumberOrNull(latest?.co2Raw);
   const co2Offset = toNumberOrNull(calibration?.co2Offset) ?? 0;
+  const co2Status = String(latest?.co2Status || "").toLowerCase();
+  if (co2Status === "recovering") return buildQuality("Recuperando", "suspect", "El ESP32 está reiniciando la comunicación UART2 del sensor CO2.");
+  if (co2Status === "invalid_zero") return buildQuality("Inválido: cero", "invalid", "El ESP32 detectó CO2 en 0 ppm y marcó la lectura como inválida.");
+  if (co2Status === "stuck_or_saturated") return buildQuality("Clavado/saturado", "invalid", "El ESP32 detectó varias lecturas consecutivas en 5000 ppm.");
   if (isCo2Invalid(co2)) return buildQuality("Lectura inválida", "invalid", "CO2 es 0, nulo, menor a 300 ppm o mayor a 10000 ppm.");
   const previous = getPreviousNumeric(records, (record) => toNumberOrNull(record.co2));
   if (previous !== null) {
@@ -571,6 +595,60 @@ function updateDiagnostics() {
   if (timerPatchEl) timerPatchEl.textContent = diag.timerPatchStatus;
 }
 
+function renderCo2RecoveryStatus(latest = {}) {
+  const statusMetaInfo = statusMeta(latest.co2Status);
+  const resetMeta = co2ResetStatusMeta(latest.co2ResetStatus);
+  setChip(els.co2LatestStatus, statusMetaInfo.text, statusMetaInfo.chip);
+  setChip(els.co2ResetLatestStatus, resetMeta.text, resetMeta.chip);
+  els.co2ResetLastAt.textContent = formatTimestamp(latest.co2ResetLastAt);
+  if (String(latest.co2ResetStatus || "").toLowerCase() === "done") {
+    state.co2ResetWaiting = false;
+    els.co2ResetRequestStatus.textContent = "Reinicio CO2 completado por el ESP32.";
+    return;
+  }
+  if (state.co2ResetWaiting) {
+    els.co2ResetRequestStatus.textContent = "Solicitud de reinicio CO2 enviada. Esperando respuesta del ESP32…";
+    return;
+  }
+  if (latest.co2InvalidCount !== undefined) {
+    els.co2ResetRequestStatus.textContent = `Lecturas inválidas consecutivas informadas por ESP32: ${formatValue(latest.co2InvalidCount)}.`;
+  }
+}
+
+async function requestCo2Reset() {
+  const ok = window.confirm("Esto no calibra el sensor. Solo reinicia la comunicación CO2. ¿Continuar?");
+  if (!ok) return;
+  const now = new Date().toISOString();
+  const payload = {
+    co2ResetRequest: true,
+    co2ResetRequestedAtWeb: now
+  };
+  state.co2ResetWaiting = true;
+  els.co2ResetRequestStatus.textContent = "Solicitud de reinicio CO2 enviada. Esperando respuesta del ESP32…";
+  els.requestCo2Reset.disabled = true;
+  try {
+    const response = await fetch(buildUrl(commandsPath), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    diag.lastPatchStatus = `commands CO2 reset HTTP ${response.status}`;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    els.co2ResetRequestStatus.textContent = "Solicitud de reinicio CO2 enviada. Esperando respuesta del ESP32…";
+    setChip(els.co2ResetLatestStatus, "Solicitado", "chip-warning");
+    updateDiagnostics();
+    await fetchLatest();
+  } catch (error) {
+    console.error("Error solicitando reinicio CO2:", error);
+    state.co2ResetWaiting = false;
+    els.co2ResetRequestStatus.textContent = "Error enviando solicitud de reinicio CO2";
+    diag.lastPatchStatus = "commands CO2 reset Error";
+    updateDiagnostics();
+  } finally {
+    els.requestCo2Reset.disabled = false;
+  }
+}
+
 function renderData(data) {
   if (!data || typeof data !== "object") {
     setStatus("Sin datos", "status-empty");
@@ -582,6 +660,7 @@ function renderData(data) {
   els.temperatura.textContent = formatValue(data.temperatura);
   els.humedadAmbiente.textContent = formatValue(data.humedadAmbiente);
   els.co2.textContent = formatValue(data.co2);
+  renderCo2RecoveryStatus(data);
   els.uptime.textContent = formatUptime(data.uptimeMs);
 
   updateCompactStatusView();
@@ -1398,6 +1477,7 @@ on(els.saveCo2, "click", () => saveSensorCalibration("co2"));
 on(els.resetTemperature, "click", () => resetSensorCalibration("temperature"));
 on(els.resetHumidity, "click", () => resetSensorCalibration("humidity"));
 on(els.resetCo2, "click", () => resetSensorCalibration("co2"));
+on(els.requestCo2Reset, "click", requestCo2Reset);
 on(els.enableCalibration, "click", enableCalibration);
 on(els.disableCalibration, "click", disableCalibration);
 on(els.saveSensorAmbientType, "click", saveSensorAmbientType);

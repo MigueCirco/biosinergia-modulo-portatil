@@ -66,6 +66,13 @@
           <article class="calibration-sensor-card calibration-sensor-card-co2">
             <h4>CO2</h4>
             <p>Raw: <span id="co2Raw">--</span> ppm</p><p>Calibrado: <span id="co2Cal">--</span> ppm</p><p>Offset actual: <span id="co2OffsetCurrent">--</span></p>
+            <div class="co2-reset-panel" aria-live="polite">
+              <p><strong>Estado CO2:</strong> <span id="co2LatestStatus">--</span></p>
+              <p><strong>Reinicio CO2:</strong> <span id="co2ResetLatestStatus">--</span></p>
+              <p><strong>Último reinicio:</strong> <span id="co2ResetLastAt">--</span></p>
+              <p id="co2ResetRequestStatus" class="muted">Sin solicitud de reinicio pendiente.</p>
+              <button id="requestCo2Reset" class="btn btn-secondary" type="button">Reiniciar lectura CO2</button>
+            </div>
             <label>CO2 referencia<input id="co2Ref" type="number" step="1" placeholder="Ej: 550" /></label>
             <p id="co2Preview" class="offset-preview">Sin cálculo.</p><p id="co2CalibrationWarning" class="calibration-warning" hidden></p><p id="co2CalibrationError" class="muted calibration-error"></p>
             <div class="download-grid"><button id="calculateCo2" class="btn btn-secondary">Calcular offset CO2</button><button id="saveCo2" class="btn btn-on">Guardar calibración CO2</button><button id="resetCo2" class="btn btn-off">Reset CO2</button></div>
