@@ -81,104 +81,133 @@
       </section>
 
       <section id="timerConfigSection" class="card section-block timer-config-section" hidden>
-        <h3 class="section-title">Configuración de modo timer</h3>
-        <p class="muted">El modo timer permite accionar humidificador y ventilación por ciclos de tiempo. Es útil como respaldo cuando un sensor falla o cuando se desea trabajar por horarios.</p>
+        <h3 class="section-title">Modo temporizador simple</h3>
+        <p class="muted">Configurá ciclos simples en minutos. Podés usar decimales con coma o punto, por ejemplo 0,5 minutos.</p>
         <p id="timerStatus" class="muted">Configuración timer lista para editar.</p>
 
-        <article class="timer-info-card">
-          <strong>Importante:</strong> el modo timer requiere firmware compatible. Si el firmware actual no interpreta mode: timer, la configuración quedará guardada en Firebase pero el ESP32 no la ejecutará todavía.
-        </article>
+        <div class="timer-simple-summary" aria-live="polite">
+          <h4>Timer</h4>
+          <div id="timerCompactSummary" class="timer-summary-list">
+            <p>Humidificador: --</p>
+            <p>Ventilación: --</p>
+            <p>Pausa: --</p>
+            <p>Exclusión mutua: --</p>
+          </div>
+        </div>
 
         <div class="timer-grid timer-general-grid">
           <label>Activar timer
-            <select id="timerEnabled"><option value="true">true</option><option value="false">false</option></select>
+            <select id="timerEnabled"><option value="true">Sí</option><option value="false">No</option></select>
           </label>
           <label>Tipo de timer
-            <select id="timerMode"><option value="cycle">Ciclos fijos</option><option value="schedule" selected>Franjas horarias</option></select>
+            <select id="timerMode"><option value="cycle" selected>Ciclos simples</option><option value="schedule">Franjas horarias</option></select>
           </label>
           <label>Zona horaria
             <input id="timerTimezone" type="text" value="America/Argentina/Tucuman" />
           </label>
           <label>Exclusión mutua
-            <select id="timerMutualExclusion"><option value="true">true</option><option value="false">false</option></select>
+            <select id="timerMutualExclusion"><option value="true">Activada</option><option value="false">Desactivada</option></select>
           </label>
-          <label>Pausa entre actuadores (segundos)
-            <input id="timerDelayBetweenActuatorsSec" type="number" min="0" max="600" step="1" value="30" />
+          <label>Pausa entre equipos (minutos)
+            <input id="timerDelayBetweenActuatorsSec" type="text" inputmode="decimal" min="0" max="10" step="0.1" value="0,5" />
           </label>
         </div>
         <p id="timerMutualNote" class="timer-note">Humidificador y ventilación no funcionarán al mismo tiempo.</p>
 
         <div class="timer-cards-grid">
-          <article class="timer-actuator-card">
+          <article class="timer-actuator-card timer-simple-card">
             <h4>Humidificador</h4>
             <div class="timer-grid">
               <label>Timer humidificador activo
-                <select id="timerHumidifierEnabled"><option value="true">true</option><option value="false">false</option></select>
+                <select id="timerHumidifierEnabled"><option value="true">Sí</option><option value="false">No</option></select>
               </label>
-              <label>ON durante segundos
-                <input id="timerHumidifierDefaultOnSec" type="number" min="5" max="600" step="1" value="45" />
+              <label>Encender durante (minutos)
+                <input id="timerHumidifierDefaultOnSec" type="text" inputmode="decimal" min="0.1" max="10" step="0.1" value="0,75" />
               </label>
-              <label>OFF durante minutos
-                <input id="timerHumidifierDefaultOffMin" type="number" min="1" max="240" step="1" value="12" />
-              </label>
-              <label>Franja día/calor inicio
-                <input id="timerHumidifierDayStart" type="time" value="11:00" />
-              </label>
-              <label>Franja día/calor fin
-                <input id="timerHumidifierDayEnd" type="time" value="18:00" />
-              </label>
-              <label>ON día/calor segundos
-                <input id="timerHumidifierDayOnSec" type="number" min="5" max="600" step="1" value="45" />
-              </label>
-              <label>OFF día/calor minutos
-                <input id="timerHumidifierDayOffMin" type="number" min="1" max="240" step="1" value="10" />
-              </label>
-              <label>ON noche segundos
-                <input id="timerHumidifierNightOnSec" type="number" min="5" max="600" step="1" value="30" />
-              </label>
-              <label>OFF noche minutos
-                <input id="timerHumidifierNightOffMin" type="number" min="1" max="240" step="1" value="20" />
+              <label>Repetir cada (minutos)
+                <input id="timerHumidifierDefaultOffMin" type="text" inputmode="decimal" min="0.5" max="240" step="0.5" value="10" />
               </label>
             </div>
+            <p id="timerHumidifierSummary" class="timer-natural-summary">El humidificador se encenderá 45 segundos cada 10 minutos.</p>
           </article>
 
-          <article class="timer-actuator-card">
+          <article class="timer-actuator-card timer-simple-card">
             <h4>Ventilación</h4>
             <div class="timer-grid">
               <label>Timer ventilación activo
-                <select id="timerVentilationEnabled"><option value="true">true</option><option value="false">false</option></select>
+                <select id="timerVentilationEnabled"><option value="true">Sí</option><option value="false">No</option></select>
               </label>
-              <label>ON durante segundos
-                <input id="timerVentilationDefaultOnSec" type="number" min="5" max="600" step="1" value="60" />
+              <label>Encender durante (minutos)
+                <input id="timerVentilationDefaultOnSec" type="text" inputmode="decimal" min="0.1" max="10" step="0.1" value="1" />
               </label>
-              <label>OFF durante minutos
-                <input id="timerVentilationDefaultOffMin" type="number" min="1" max="240" step="1" value="15" />
-              </label>
-              <label>Franja día/calor inicio
-                <input id="timerVentilationDayStart" type="time" value="11:00" />
-              </label>
-              <label>Franja día/calor fin
-                <input id="timerVentilationDayEnd" type="time" value="18:00" />
-              </label>
-              <label>ON día/calor segundos
-                <input id="timerVentilationDayOnSec" type="number" min="5" max="600" step="1" value="60" />
-              </label>
-              <label>OFF día/calor minutos
-                <input id="timerVentilationDayOffMin" type="number" min="1" max="240" step="1" value="15" />
-              </label>
-              <label>ON noche segundos
-                <input id="timerVentilationNightOnSec" type="number" min="5" max="600" step="1" value="45" />
-              </label>
-              <label>OFF noche minutos
-                <input id="timerVentilationNightOffMin" type="number" min="1" max="240" step="1" value="25" />
+              <label>Repetir cada (minutos)
+                <input id="timerVentilationDefaultOffMin" type="text" inputmode="decimal" min="0.5" max="240" step="0.5" value="15" />
               </label>
             </div>
+            <p id="timerVentilationSummary" class="timer-natural-summary">La ventilación se encenderá 1 minuto cada 15 minutos.</p>
           </article>
         </div>
 
+        <p id="timerDelaySummary" class="timer-natural-summary">Entre un equipo y otro habrá una pausa de 30 segundos.</p>
+
         <div class="download-grid timer-actions">
+          <button id="useTimerTestValues" class="btn btn-secondary">Usar valores de prueba</button>
+          <button id="useTimerRecommendedValues" class="btn btn-secondary">Usar valores recomendados</button>
           <button id="saveTimerConfig" class="btn btn-on">Guardar configuración timer</button>
         </div>
+
+        <details class="timer-advanced-block">
+          <summary>Configuración avanzada por horarios</summary>
+          <p class="muted">Opcional. Esta sección conserva las franjas horarias existentes para compatibilidad.</p>
+          <div class="timer-cards-grid">
+            <article class="timer-actuator-card">
+              <h4>Humidificador por horarios</h4>
+              <div class="timer-grid">
+                <label>Franja día/calor inicio
+                  <input id="timerHumidifierDayStart" type="time" value="11:00" />
+                </label>
+                <label>Franja día/calor fin
+                  <input id="timerHumidifierDayEnd" type="time" value="18:00" />
+                </label>
+                <label>Encender día/calor (segundos)
+                  <input id="timerHumidifierDayOnSec" type="number" min="5" max="600" step="1" value="45" />
+                </label>
+                <label>Repetir día/calor (minutos)
+                  <input id="timerHumidifierDayOffMin" type="number" min="1" max="240" step="1" value="10" />
+                </label>
+                <label>Encender noche (segundos)
+                  <input id="timerHumidifierNightOnSec" type="number" min="5" max="600" step="1" value="30" />
+                </label>
+                <label>Repetir noche (minutos)
+                  <input id="timerHumidifierNightOffMin" type="number" min="1" max="240" step="1" value="20" />
+                </label>
+              </div>
+            </article>
+            <article class="timer-actuator-card">
+              <h4>Ventilación por horarios</h4>
+              <div class="timer-grid">
+                <label>Franja día/calor inicio
+                  <input id="timerVentilationDayStart" type="time" value="11:00" />
+                </label>
+                <label>Franja día/calor fin
+                  <input id="timerVentilationDayEnd" type="time" value="18:00" />
+                </label>
+                <label>Encender día/calor (segundos)
+                  <input id="timerVentilationDayOnSec" type="number" min="5" max="600" step="1" value="60" />
+                </label>
+                <label>Repetir día/calor (minutos)
+                  <input id="timerVentilationDayOffMin" type="number" min="1" max="240" step="1" value="15" />
+                </label>
+                <label>Encender noche (segundos)
+                  <input id="timerVentilationNightOnSec" type="number" min="5" max="600" step="1" value="45" />
+                </label>
+                <label>Repetir noche (minutos)
+                  <input id="timerVentilationNightOffMin" type="number" min="1" max="240" step="1" value="25" />
+                </label>
+              </div>
+            </article>
+          </div>
+        </details>
       </section>
 
       <section class="card section-block">
