@@ -1,4 +1,4 @@
-const APP_VERSION = "biosinergia-pwa-v1-6-0";
+const APP_VERSION = "biosinergia-pwa-v1-7-0";
 const CACHE_NAME = APP_VERSION;
 const STATIC_ASSETS = [
   "/biosinergia-modulo-portatil/",

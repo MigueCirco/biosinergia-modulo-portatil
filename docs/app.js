@@ -8,7 +8,7 @@ const DEVICE_ID = "biosinergia_001";
 // Si usas token, agrégalo aquí. Para pruebas abiertas puede quedar vacío.
 const FIREBASE_AUTH = "";
 
-const WEB_VERSION = "BioSinergia Web v1.6.0";
+const WEB_VERSION = "BioSinergia Web v1.7.0";
 
 const PAGE = document.body?.dataset?.page || "home";
 const noop = () => {};
@@ -105,6 +105,14 @@ const els = {
   downloadEventsCsv: $("downloadEventsCsv"),
   downloadHistoryJson: $("downloadHistoryJson"),
   downloadEventsJson: $("downloadEventsJson"),
+  downloadFullBackup: $("downloadFullBackup"),
+  startNewCampaign: $("startNewCampaign"),
+  campaignStatus: $("campaignStatus"),
+  campaignHistoryCount: $("campaignHistoryCount"),
+  campaignEventsCount: $("campaignEventsCount"),
+  campaignFirstReading: $("campaignFirstReading"),
+  campaignLastReading: $("campaignLastReading"),
+  campaignResultList: $("campaignResultList"),
   calibrationStatus: $("calibrationStatus"),
   calibrationModeHint: $("calibrationModeHint"),
   enableCalibration: $("enableCalibration"),
@@ -244,7 +252,8 @@ const state = {
   pendingCalibrationBySensor: {},
   co2ResetWaiting: false,
   config: null,
-  recentHistory: []
+  recentHistory: [],
+  campaignStats: { historyCount: 0, eventsCount: 0, firstReading: null, lastReading: null }
 };
 
 function buildUrl(path) {
@@ -1096,6 +1105,172 @@ async function handleDownload(path, format, baseName) {
   }
 }
 
+function countFirebaseRecords(data) {
+  return data && typeof data === "object" ? Object.keys(data).length : 0;
+}
+
+function getCampaignName(config) {
+  if (!config || typeof config !== "object") return null;
+  return config.campaignName || config.campaign || config.crop || config.cultivo || null;
+}
+
+function getCampaignBackupFilename(date = new Date()) {
+  const stamp = date.toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
+  return `backup_biosinergia_campaign_${stamp}.json`;
+}
+
+function summarizeConfig(config) {
+  if (!config || typeof config !== "object") return null;
+  return {
+    mode: config.mode ?? config.modo ?? null,
+    crop: config.crop ?? config.cultivo ?? null,
+    sensorAmbientType: config.sensorAmbientType ?? null,
+    co2Min: config.co2Min ?? null,
+    co2Max: config.co2Max ?? null,
+    humMin: config.humMin ?? null,
+    humMax: config.humMax ?? null,
+    tempMin: config.tempMin ?? null,
+    tempMax: config.tempMax ?? null,
+    timerEnabled: config.timer?.enabled ?? null,
+    updatedAtWeb: config.updatedAtWeb ?? null,
+    updatedFrom: config.updatedFrom ?? null
+  };
+}
+
+function buildCampaignMetadata({ history, events, config, downloadedAt }) {
+  return {
+    deviceId: DEVICE_ID,
+    downloadedAt,
+    suggestedCampaignName: getCampaignName(config),
+    historyCount: countFirebaseRecords(history),
+    eventsCount: countFirebaseRecords(events),
+    webVersion: WEB_VERSION || null
+  };
+}
+
+function buildCampaignBackup({ latest, history, events, config, calibration, downloadedAt = new Date().toISOString() }) {
+  return {
+    latest: latest ?? null,
+    history: history ?? null,
+    events: events ?? null,
+    config: config ?? null,
+    calibration: calibration ?? null,
+    metadata: buildCampaignMetadata({ history, events, config, downloadedAt })
+  };
+}
+
+async function fetchCampaignBackupData() {
+  const [latest, history, events, config, calibration] = await Promise.all([
+    fetchCollection(latestPath),
+    fetchCollection(historyDownloadPath),
+    fetchCollection(eventsDownloadPath),
+    fetchCollection(configPath),
+    fetchCollection(calibrationPath)
+  ]);
+  return buildCampaignBackup({ latest, history, events, config, calibration });
+}
+
+async function downloadFullCampaignBackup() {
+  const backup = await fetchCampaignBackupData();
+  downloadContent(getCampaignBackupFilename(new Date(backup.metadata.downloadedAt)), JSON.stringify(backup, null, 2), "application/json;charset=utf-8;");
+  els.campaignStatus.textContent = `Backup completo descargado: ${backup.metadata.historyCount} mediciones y ${backup.metadata.eventsCount} eventos.`;
+  return backup;
+}
+
+function getHistoryDateRange(history) {
+  const records = normalizeHistoryRecords(history).filter((record) => record.date instanceof Date && !Number.isNaN(record.date.getTime()));
+  if (!records.length) return { first: null, last: null };
+  return { first: records[0].date.getTime(), last: records[records.length - 1].date.getTime() };
+}
+
+function updateCampaignSummaryView(stats = state.campaignStats) {
+  els.campaignHistoryCount.textContent = String(stats.historyCount ?? 0);
+  els.campaignEventsCount.textContent = String(stats.eventsCount ?? 0);
+  els.campaignFirstReading.textContent = stats.firstReading ? formatTimestamp(stats.firstReading) : "--";
+  els.campaignLastReading.textContent = stats.lastReading ? formatTimestamp(stats.lastReading) : "--";
+}
+
+async function refreshCampaignSummary() {
+  try {
+    const [history, events] = await Promise.all([
+      fetchCollection(historyDownloadPath),
+      fetchCollection(eventsDownloadPath)
+    ]);
+    const range = getHistoryDateRange(history);
+    state.campaignStats = {
+      historyCount: countFirebaseRecords(history),
+      eventsCount: countFirebaseRecords(events),
+      firstReading: range.first,
+      lastReading: range.last
+    };
+    updateCampaignSummaryView();
+  } catch (error) {
+    console.error("Error resumen campaña:", error);
+    els.campaignStatus.textContent = "No se pudo actualizar el contador de campaña.";
+  }
+}
+
+async function deleteFirebasePath(path) {
+  const response = await fetch(buildUrl(path), { method: "DELETE", cache: "no-store" });
+  diag.lastPatchStatus = `DELETE HTTP ${response.status}`;
+  updateDiagnostics();
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+
+async function createCampaignStartedEvent(config) {
+  const createdAtWeb = new Date().toISOString();
+  const event = {
+    type: "CAMPAIGN_STARTED",
+    source: "dashboard_admin",
+    reason: "Inicio manual de nueva campaña desde Admin",
+    createdAtWeb,
+    timestamp: Date.now(),
+    deviceId: DEVICE_ID,
+    configSnapshot: summarizeConfig(config)
+  };
+  const response = await fetch(buildUrl(eventsDownloadPath), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(event),
+    cache: "no-store"
+  });
+  diag.lastPatchStatus = `POST HTTP ${response.status}`;
+  updateDiagnostics();
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return await response.json();
+}
+
+async function startNewCampaign() {
+  const warning = "Esta acción borra el historial y los eventos guardados en Firebase para comenzar una nueva campaña. La configuración, calibración y comandos se conservarán. Descargá un backup antes de continuar.\n\nEscribí BORRAR para continuar:";
+  const confirmation = window.prompt(warning, "");
+  if (confirmation !== "BORRAR") {
+    els.campaignStatus.textContent = "Operación cancelada: no se escribió BORRAR exactamente.";
+    return;
+  }
+
+  els.startNewCampaign.disabled = true;
+  els.downloadFullBackup.disabled = true;
+  els.campaignResultList.hidden = true;
+  els.campaignStatus.textContent = "Generando backup completo antes de borrar…";
+
+  try {
+    const backup = await downloadFullCampaignBackup();
+    els.campaignStatus.textContent = "Backup descargado. Borrando history y events…";
+    await deleteFirebasePath(historyDownloadPath);
+    await deleteFirebasePath(eventsDownloadPath);
+    await createCampaignStartedEvent(backup.config);
+    els.campaignStatus.textContent = "Nueva campaña iniciada.";
+    els.campaignResultList.hidden = false;
+    await Promise.all([fetchHistory(), fetchEvents(), refreshCampaignSummary()]);
+  } catch (error) {
+    console.error("Error al iniciar nueva campaña:", error);
+    els.campaignStatus.textContent = "Advertencia: no se inició la nueva campaña porque falló el backup o el borrado seguro.";
+  } finally {
+    els.startNewCampaign.disabled = false;
+    els.downloadFullBackup.disabled = false;
+  }
+}
+
 function getSensorCalibrationMeta(sensorKey) {
   const map = {
     temperature: { raw: toNumberOrNull((state.latest || {}).temperaturaRaw ?? (state.latest || {}).temperatura), calibrated: toNumberOrNull((state.latest || {}).temperatura), ref: toNumberOrNull(els.temperatureRef.value), min: -10, max: 60, offsetField: "temperatureOffset", previewEl: els.temperaturePreview, errorEl: els.temperatureCalibrationError, unit: "°C" },
@@ -1641,6 +1816,11 @@ on(els.downloadHistoryCsv, "click", () => handleDownload(historyDownloadPath, "c
 on(els.downloadEventsCsv, "click", () => handleDownload(eventsDownloadPath, "csv", "events"));
 on(els.downloadHistoryJson, "click", () => handleDownload(historyDownloadPath, "json", "history"));
 on(els.downloadEventsJson, "click", () => handleDownload(eventsDownloadPath, "json", "events"));
+on(els.downloadFullBackup, "click", () => downloadFullCampaignBackup().catch((error) => {
+  console.error("Error backup completo:", error);
+  els.campaignStatus.textContent = "Error al generar backup completo";
+}));
+on(els.startNewCampaign, "click", startNewCampaign);
 on(els.calculateTemperature, "click", () => calculateSensorCalibration("temperature"));
 on(els.calculateHumidity, "click", () => calculateSensorCalibration("humidity"));
 on(els.calculateCo2, "click", () => calculateSensorCalibration("co2"));
@@ -1721,6 +1901,7 @@ function initPage() {
     runEvery(fetchEvents, historyRefreshMs);
     runEvery(fetchCalibration, historyRefreshMs);
     runEvery(fetchConfig, historyRefreshMs);
+    runEvery(refreshCampaignSummary, historyRefreshMs);
     setInterval(updateReadingAge, 1000);
   }
 }

@@ -61,6 +61,28 @@
         </div>
       </section>
 
+      <section class="card section-block campaign-card">
+        <h3 class="section-title">Gestión de campaña</h3>
+        <p class="muted">Comenzá una nueva campaña de cultivo con respaldo seguro de los datos históricos.</p>
+        <div class="campaign-summary-grid" aria-label="Resumen de campaña actual">
+          <p><strong>Mediciones en history:</strong> <span id="campaignHistoryCount">--</span></p>
+          <p><strong>Eventos en events:</strong> <span id="campaignEventsCount">--</span></p>
+          <p><strong>Primera medición:</strong> <span id="campaignFirstReading">--</span></p>
+          <p><strong>Última medición:</strong> <span id="campaignLastReading">--</span></p>
+        </div>
+        <p id="campaignStatus" class="muted">Los backups incluyen latest, history, events, config, calibration y metadata.</p>
+        <div class="download-grid campaign-actions">
+          <button id="downloadFullBackup" class="btn btn-secondary">Descargar backup completo</button>
+          <button id="startNewCampaign" class="btn btn-danger">Iniciar nueva campaña</button>
+        </div>
+        <ul id="campaignResultList" class="campaign-result-list" hidden>
+          <li>Nueva campaña iniciada</li>
+          <li>Historial anterior respaldado y borrado</li>
+          <li>Eventos reiniciados</li>
+          <li>Configuración y calibración conservadas</li>
+        </ul>
+      </section>
+
       <details class="card section-block technical-details">
         <summary class="section-title">Datos técnicos detallados</summary>
         <section>
@@ -91,7 +113,7 @@
           <p><strong>Última carga de gráficos:</strong> <span id="diagChartsLastLoad">--</span></p>
           <p><strong>Registros en gráficos:</strong> <span id="diagChartsCount">--</span></p>
           <p><strong>Estado gráficos:</strong> <span id="diagChartsState">--</span></p>
-          <p><strong>Versión web actual:</strong> <span id="diagWebVersion">BioSinergia Web v1.6.0</span></p>
+          <p><strong>Versión web actual:</strong> <span id="diagWebVersion">BioSinergia Web v1.7.0</span></p>
         </div>
       </section>
     </main>
