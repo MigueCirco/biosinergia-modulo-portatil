@@ -33,61 +33,134 @@
       </nav>
     </header>
 
-    <main class="container">
-      <section class="card section-block">
-        <h3 class="section-title">Gráficos históricos</h3>
-        <p class="muted">Visualización de temperatura, humedad, CO2 y estados de actuadores registrados en Firebase.</p>
+    <main class="container charts-page">
+      <section class="analysis-hero card section-block">
+        <div>
+          <p class="eyebrow">Dashboard BioSinergia</p>
+          <h3 class="section-title">Análisis histórico del módulo</h3>
+          <p class="muted">Compará sensores y actuadores para entender cómo responde el ambiente.</p>
+        </div>
+        <p id="chartsStatus" class="analysis-status muted">Cargando datos históricos…</p>
+      </section>
+
+      <section class="card section-block analysis-controls" aria-labelledby="analysisControlsTitle">
+        <h3 id="analysisControlsTitle" class="section-title">Controles de análisis</h3>
         <div class="charts-toolbar">
           <label>Rango analizado
             <select id="chartRangeSelect">
-              <option value="30">Últimas 30 mediciones</option>
-              <option value="100">Últimas 100 mediciones</option>
-              <option value="300" selected>Últimas 300 mediciones</option>
+              <option value="1h">Última hora</option>
+              <option value="2h">Últimas 2 horas</option>
+              <option value="6h" selected>Últimas 6 horas</option>
+              <option value="12h">Últimas 12 horas</option>
               <option value="24h">Últimas 24 horas</option>
+              <option value="today">Hoy</option>
+              <option value="all">Todo</option>
             </select>
           </label>
-          <label class="checkbox-label">
-            <input id="excludeSuspectData" type="checkbox" />
-            Excluir datos inválidos/sospechosos
+          <label>Divisiones del eje temporal
+            <select id="chartTickSelect">
+              <option value="auto" selected>Automático</option>
+              <option value="4">4 divisiones</option>
+              <option value="6">6 divisiones</option>
+              <option value="8">8 divisiones</option>
+              <option value="12">12 divisiones</option>
+              <option value="24">24 divisiones</option>
+            </select>
           </label>
-          <button id="refreshCharts" class="btn btn-secondary">Actualizar gráficos</button>
+          <label>Resolución de análisis
+            <select id="chartResolutionSelect">
+              <option value="raw" selected>Datos crudos</option>
+              <option value="5">Promedio cada 5 minutos</option>
+              <option value="10">Promedio cada 10 minutos</option>
+              <option value="15">Promedio cada 15 minutos</option>
+              <option value="30">Promedio cada 30 minutos</option>
+            </select>
+          </label>
+          <label class="checkbox-label inline-check">
+            <input id="excludeInvalidCo2" type="checkbox" checked />
+            Ocultar CO2 inválido
+          </label>
+          <label class="checkbox-label inline-check">
+            <input id="excludeSuspectData" type="checkbox" checked />
+            Ocultar datos sospechosos
+          </label>
+          <label class="checkbox-label inline-check">
+            <input id="showRawData" type="checkbox" />
+            Mostrar datos crudos
+          </label>
+          <button id="refreshCharts" class="btn btn-secondary">Actualizar análisis</button>
         </div>
-        <p id="chartsStatus" class="muted">Cargando datos históricos…</p>
-        <article class="chart-summary card-lite">
-          <h4>Resumen del rango</h4>
-          <div id="chartsSummary" class="summary-mini-grid"></div>
-        </article>
-        <div class="chart-panel">
+        <p class="muted">Los filtros solo afectan la visualización: no modifican Firebase ni las descargas CSV/JSON.</p>
+      </section>
+
+      <section class="card section-block" aria-labelledby="rangeSummaryTitle">
+        <h3 id="rangeSummaryTitle" class="section-title">Resumen del rango</h3>
+        <div id="chartsSummary" class="summary-mini-grid analysis-summary"></div>
+        <div id="chartsInterpretation" class="interpretation-strip"></div>
+      </section>
+
+      <section class="card section-block" aria-labelledby="quickReadTitle">
+        <h3 id="quickReadTitle" class="section-title">Lectura rápida</h3>
+        <div id="quickReadList" class="insight-grid"></div>
+      </section>
+
+      <section class="card section-block" aria-labelledby="timerAnalysisTitle">
+        <h3 id="timerAnalysisTitle" class="section-title">Cumplimiento del temporizador</h3>
+        <div id="timerAnalysis" class="timer-analysis-grid"></div>
+      </section>
+
+      <section class="card section-block charts-section" aria-labelledby="chartsPanelTitle">
+        <h3 id="chartsPanelTitle" class="section-title">Evolución temporal</h3>
+        <p class="muted">Todos los gráficos comparten el mismo rango horario y las mismas divisiones del eje X.</p>
+        <div class="chart-panel analysis-chart-panel">
           <article class="card-lite chart-card chart-container large">
             <h4>Temperatura</h4>
-            <p id="tempReference" class="muted">SET activo: --</p>
+            <p id="tempReference" class="muted">Rango recomendado: --</p>
             <div class="chart-canvas-wrap"><canvas id="tempChart"></canvas></div>
           </article>
-          <article class="card-lite chart-card chart-container large">
-            <h4>Humedad ambiente</h4>
-            <p id="humReference" class="muted">SET activo: --</p>
-            <div class="chart-canvas-wrap"><canvas id="humChart"></canvas></div>
+
+          <article class="cause-effect-group">
+            <div class="group-header">
+              <h4>Humedad y humidificador</h4>
+              <p class="muted">Verificá si al encender el humidificador la humedad sube o se sostiene.</p>
+            </div>
+            <article class="card-lite chart-card chart-container large aligned-chart">
+              <h4>Humedad ambiente</h4>
+              <p id="humReference" class="muted">Rango recomendado: --</p>
+              <div class="chart-canvas-wrap"><canvas id="humChart"></canvas></div>
+            </article>
+            <article class="card-lite chart-card chart-container timeline aligned-chart">
+              <h4>Humidificador</h4>
+              <p class="muted">Estado operativo: OFF / ON</p>
+              <div class="chart-canvas-wrap"><canvas id="humidifierChart"></canvas></div>
+            </article>
           </article>
-          <article class="card-lite chart-card chart-container timeline">
-            <h4>Humidificador</h4>
-            <p class="muted">Actuador de humidificación · 0 = OFF / 1 = ON</p>
-            <div class="chart-canvas-wrap"><canvas id="humidifierChart"></canvas></div>
-          </article>
-          <article class="card-lite chart-card chart-container timeline">
-            <h4>Ventilación</h4>
-            <p class="muted">Intractor + extractor · 0 = OFF / 1 = ON</p>
-            <div class="chart-canvas-wrap"><canvas id="ventilationChart"></canvas></div>
-          </article>
-          <article class="card-lite chart-card chart-container large">
-            <h4>CO2</h4>
-            <p id="co2Reference" class="muted">SET activo: --</p>
-            <div class="chart-canvas-wrap"><canvas id="co2Chart"></canvas></div>
+
+          <article class="cause-effect-group">
+            <div class="group-header">
+              <h4>Ventilación y CO2</h4>
+              <p class="muted">Compará activaciones de ventilación con humedad y CO2 del período.</p>
+            </div>
+            <article class="card-lite chart-card chart-container timeline aligned-chart">
+              <h4>Ventilación</h4>
+              <p class="muted">Estado operativo: OFF / ON</p>
+              <div class="chart-canvas-wrap"><canvas id="ventilationChart"></canvas></div>
+            </article>
+            <article class="card-lite chart-card chart-container large aligned-chart">
+              <h4>CO2</h4>
+              <p id="co2Reference" class="muted">Rango recomendado: --</p>
+              <p id="co2FilterNotice" class="data-warning" hidden>CO2 filtrado por lecturas inválidas o sospechosas.</p>
+              <div class="chart-canvas-wrap"><canvas id="co2Chart"></canvas></div>
+            </article>
           </article>
         </div>
-        <article class="card-lite chart-note">
-          <p>Todas las gráficas comparten el mismo eje temporal. Esto permite analizar correlaciones causa–efecto entre variables ambientales y el accionamiento de actuadores.</p>
-        </article>
       </section>
+
+      <details class="card section-block technical-details">
+        <summary>Ver datos técnicos</summary>
+        <p class="muted">Detalle operativo de la consulta actual para diagnóstico. Las descargas completas siguen disponibles desde Admin.</p>
+        <div id="technicalChartDetails" class="technical-summary-grid summary-mini-grid"></div>
+      </details>
     </main>
 
     <footer class="site-footer">BioSinergia · Tecnología para cultivar con datos</footer>

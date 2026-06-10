@@ -196,10 +196,19 @@ const els = {
   mutualExclusion: $("mutualExclusion"),
   crop: $("crop"),
   chartRangeSelect: $("chartRangeSelect"),
+  chartTickSelect: $("chartTickSelect"),
+  chartResolutionSelect: $("chartResolutionSelect"),
+  excludeInvalidCo2: $("excludeInvalidCo2"),
   excludeSuspectData: $("excludeSuspectData"),
+  showRawData: $("showRawData"),
   refreshCharts: $("refreshCharts"),
   chartsStatus: $("chartsStatus"),
   chartsSummary: $("chartsSummary"),
+  chartsInterpretation: $("chartsInterpretation"),
+  quickReadList: $("quickReadList"),
+  timerAnalysis: $("timerAnalysis"),
+  co2FilterNotice: $("co2FilterNotice"),
+  technicalChartDetails: $("technicalChartDetails"),
   tempReference: $("tempReference"),
   humReference: $("humReference"),
   co2Reference: $("co2Reference"),
@@ -1094,93 +1103,360 @@ function normalizeHistoryRecords(data) {
       humedadAmbienteRaw: toNumberOrNull(rec.humedadAmbienteRaw ?? rec.humedadRaw ?? rec.humidityRaw),
       co2: toNumberOrNull(rec.co2),
       co2Raw: toNumberOrNull(rec.co2Raw),
-      relay1: rec.relay1 === true ? 1 : rec.relay1 === false ? 0 : null,
-      relay2: rec.relay2 === true ? 1 : rec.relay2 === false ? 0 : null,
+      relay1: rec.relay1 === true ? 1 : rec.relay1 === false ? 0 : toNumberOrNull(rec.relay1),
+      relay2: rec.relay2 === true ? 1 : rec.relay2 === false ? 0 : toNumberOrNull(rec.relay2),
       mode: rec.mode ?? rec.modo ?? null,
       uptimeMs: toNumberOrNull(rec.uptimeMs)
     };
   }).sort((a,b)=> (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
 }
 
+function normalizeEventRecords(data) {
+  if (!data || typeof data !== "object") return [];
+  return Object.entries(data).map(([id, event]) => {
+    const value = event || {};
+    const timestamp = normalizeTimestamp(value.timestamp ?? value.ts ?? value.createdAt);
+    return {
+      id,
+      timestamp,
+      date: timestamp ? new Date(timestamp) : null,
+      relay: value.relay ?? value.actuator ?? value.output ?? null,
+      from: value.from ?? value.previous ?? null,
+      to: value.to ?? value.state ?? value.value ?? null,
+      mode: value.mode ?? value.modo ?? null,
+      durationSec: toNumberOrNull(value.durationSec ?? value.duration ?? value.onSec),
+      reason: value.reason ?? value.motivo ?? null
+    };
+  }).filter((event) => event.timestamp).sort((a, b) => a.timestamp - b.timestamp);
+}
+
 function destroyCharts(){ Object.keys(chartInstances).forEach(k=>{ if(chartInstances[k]){ chartInstances[k].destroy(); chartInstances[k]=null; } }); }
-function createLineChart(canvas, label, labels, values, color, stepped=false, optimalRange=null, yAxisConfig={}){
-  if (!canvas || typeof Chart === "undefined") return null;
-  return new Chart(canvas.getContext("2d"), { type:"line", data:{labels,datasets:[{label,data:values,borderColor:color,backgroundColor:color,tension:0.25,stepped,pointRadius:0,borderWidth:2}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{optimalRangePlugin:{optimalRange}},scales:{x:{ticks:{maxTicksLimit:8,maxRotation:0,callback:(_v, i)=> String(labels[i] || "").split(", ").pop()}},y:{beginAtZero:false,...yAxisConfig}}}, plugins:[optimalRangePlugin] });
-}
-function buildSharedTimeAxis(records){
-  const sortedRecords = [...records];
-  const chartTimes = sortedRecords.map((r) => normalizeTimestamp(r.timestamp));
-  const chartLabels = sortedRecords.map((r, index) => {
-    if (chartTimes[index]) return formatTimestamp(chartTimes[index]);
-    if (Number.isFinite(r.uptimeMs)) return `Uptime ${formatUptime(r.uptimeMs)}`;
-    return `Registro ${r.id}`;
-  });
-  return { sortedRecords, chartTimes, chartLabels };
-}
-function getChartRangeSelection(){ return els.chartRangeSelect?.value || "300"; }
-function buildHistoryChartPath(range){
-  const limit = range === "24h" ? charts24hLimit : Number(range || 300);
-  return `/devices/${DEVICE_ID}/history.json?orderBy=%22$key%22&limitToLast=${limit}`;
-}
 function summarize(values){ if(!values.length) return null; return values.reduce((a,b)=>a+b,0)/values.length; }
 function pctInRange(values,min,max){ if(!values.length||min===null||max===null) return null; const ok=values.filter(v=>v>=min&&v<=max).length; return (ok*100)/values.length; }
 function setChartsStatus(text,isError=false){ els.chartsStatus.textContent=text; els.chartsStatus.classList.toggle("section-error",isError); }
-function shouldExcludeSuspectData(){ return els.excludeSuspectData?.checked === true; }
-function prepareChartRecords(records, excludeSuspect) {
-  let discarded = 0;
+function getChartRangeSelection(){ return els.chartRangeSelect?.value || "6h"; }
+function getChartTickLimit(){ const raw = els.chartTickSelect?.value || "auto"; return raw === "auto" ? 8 : Number(raw); }
+function getChartResolutionMinutes(){ const raw = els.chartResolutionSelect?.value || "raw"; return raw === "raw" ? 0 : Number(raw); }
+function shouldExcludeInvalidCo2(){ return els.excludeInvalidCo2?.checked !== false; }
+function shouldExcludeSuspectData(){ return els.excludeSuspectData?.checked !== false; }
+function shouldShowRawData(){ return els.showRawData?.checked === true; }
+function isCo2InvalidForCharts(value) { const co2 = toNumberOrNull(value); return co2 === null || co2 === 0 || co2 >= 5000; }
+function isChartSuspect(record) {
+  const temp = toNumberOrNull(record?.temperatura);
+  const humidity = toNumberOrNull(record?.humedadAmbiente);
+  return isHumiditySaturated(record) || (temp !== null && (temp < -10 || temp > 60)) || (humidity !== null && (humidity < 0 || humidity > 100));
+}
+function getConfiguredRange(config, minKey, maxKey, fallbackMin, fallbackMax) {
+  return { yMin: toNumberOrNull(config?.[minKey]) ?? fallbackMin, yMax: toNumberOrNull(config?.[maxKey]) ?? fallbackMax };
+}
+function buildHistoryChartPath(range){
+  if (range === "all") return historyDownloadPath;
+  const limits = { "1h": 500, "2h": 800, "6h": 1200, "12h": 1800, "24h": charts24hLimit, today: charts24hLimit };
+  return `/devices/${DEVICE_ID}/history.json?orderBy=%22$key%22&limitToLast=${limits[range] || 1200}`;
+}
+function getRangeCutoff(range) {
+  const now = Date.now();
+  const hours = { "1h": 1, "2h": 2, "6h": 6, "12h": 12, "24h": 24 }[range];
+  if (hours) return now - hours * 60 * 60 * 1000;
+  if (range === "today") { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  return null;
+}
+function applySelectedRange(records, range) {
+  const withDate = records.filter((r) => r.date && Number.isFinite(r.date.getTime()));
+  const cutoff = getRangeCutoff(range);
+  return cutoff ? withDate.filter((r) => r.date.getTime() >= cutoff) : withDate;
+}
+function prepareChartRecords(records, options) {
+  let discardedRecords = 0;
+  let invalidCo2 = 0;
+  let suspect = 0;
   const prepared = records.map((record) => {
     const copy = { ...record };
     let discardedThisRecord = false;
-    if (excludeSuspect && isHumiditySaturated(record)) {
-      copy.humedadAmbiente = null;
+    if (options.excludeSuspect && isChartSuspect(record)) {
+      if (isHumiditySaturated(record) || toNumberOrNull(record.humedadAmbiente) < 0 || toNumberOrNull(record.humedadAmbiente) > 100) copy.humedadAmbiente = null;
+      if (toNumberOrNull(record.temperatura) < -10 || toNumberOrNull(record.temperatura) > 60) copy.temperatura = null;
+      suspect += 1;
       discardedThisRecord = true;
     }
-    if (excludeSuspect && isCo2Invalid(record.co2)) {
+    if ((options.excludeInvalidCo2 && isCo2InvalidForCharts(record.co2)) || (options.excludeSuspect && isCo2Invalid(record.co2))) {
       copy.co2 = null;
+      invalidCo2 += 1;
       discardedThisRecord = true;
     }
-    if (discardedThisRecord) discarded += 1;
+    if (discardedThisRecord) discardedRecords += 1;
     return copy;
   });
-  return { prepared, discarded };
+  return { prepared, discardedRecords, invalidCo2, suspect };
 }
+function groupChartRecords(records, minutes) {
+  if (!minutes || minutes <= 0) return records;
+  const windowMs = minutes * 60 * 1000;
+  const buckets = new Map();
+  records.forEach((record) => {
+    const time = record.date?.getTime();
+    if (!Number.isFinite(time)) return;
+    const key = Math.floor(time / windowMs) * windowMs;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(record);
+  });
+  return Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]).map(([time, bucket]) => {
+    const avg = (field) => summarize(bucket.map((r) => r[field]).filter((value) => value !== null && value !== undefined));
+    const maxState = (field) => bucket.some((r) => r[field] === 1) ? 1 : bucket.some((r) => r[field] === 0) ? 0 : null;
+    return {
+      id: `bucket-${time}`,
+      timestamp: time,
+      date: new Date(time),
+      temperatura: avg("temperatura"),
+      humedadAmbiente: avg("humedadAmbiente"),
+      co2: avg("co2"),
+      relay1: maxState("relay1"),
+      relay2: maxState("relay2"),
+      mode: bucket.find((r) => r.mode)?.mode ?? null,
+      bucketSize: bucket.length
+    };
+  });
+}
+function chartPoint(record, field) { return { x: record.date?.getTime(), y: record[field], record }; }
+function formatShortTime(ms) {
+  return new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(ms));
+}
+function createLineChart(canvas, label, records, field, color, chartOptions={}){
+  if (!canvas || typeof Chart === "undefined") return null;
+  const points = records.map((record) => chartPoint(record, field)).filter((point) => Number.isFinite(point.x));
+  const unit = chartOptions.unit || "";
+  const isActuator = chartOptions.actuator === true;
+  return new Chart(canvas.getContext("2d"), {
+    type:"line",
+    data:{datasets:[{label,data:points,borderColor:color,backgroundColor:color,tension:isActuator?0:0.25,stepped:isActuator,pointRadius:0,borderWidth:2,spanGaps:false,parsing:false}]},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{mode:"nearest",intersect:false},
+      plugins:{
+        optimalRangePlugin:{optimalRange:chartOptions.optimalRange},
+        tooltip:{callbacks:{
+          title:(items)=>items?.[0]?.parsed?.x ? formatTimestamp(items[0].parsed.x) : "--",
+          label:(ctx)=>{
+            const record = ctx.raw?.record || {};
+            if (isActuator) {
+              const stateText = ctx.parsed.y === 1 ? "ON" : ctx.parsed.y === 0 ? "OFF" : "Sin dato";
+              const modeText = record.mode ? ` · modo ${modeLabel(record.mode)}` : "";
+              const durationText = record.durationSec ? ` · duración ${record.durationSec} s` : "";
+              return `${label}: ${stateText}${modeText}${durationText}`;
+            }
+            const valueText = ctx.parsed.y === null || ctx.parsed.y === undefined ? "Sin dato" : `${Number(ctx.parsed.y).toFixed(2)} ${unit}`.trim();
+            const status = record.status ? ` · estado ${record.status}` : "";
+            return `${label}: ${valueText}${status}`;
+          }
+        }}
+      },
+      scales:{
+        x:{type:"linear",min:chartOptions.minTime,max:chartOptions.maxTime,ticks:{maxTicksLimit:chartOptions.maxTicksLimit,callback:(value)=>formatShortTime(value),maxRotation:0}},
+        y:{beginAtZero:false,...(chartOptions.yAxisConfig || {})}
+      }
+    },
+    plugins:[optimalRangePlugin]
+  });
+}
+function countActivations(records, field) {
+  let count = 0;
+  let previous = 0;
+  records.forEach((record) => {
+    const current = record[field] === 1 ? 1 : 0;
+    if (current === 1 && previous !== 1) count += 1;
+    previous = current;
+  });
+  return count;
+}
+function getActivationStarts(records, field) {
+  const starts = [];
+  let previous = 0;
+  records.forEach((record) => {
+    const current = record[field] === 1 ? 1 : 0;
+    if (current === 1 && previous !== 1 && record.date) starts.push(record.date.getTime());
+    previous = current;
+  });
+  return starts;
+}
+function getOnDurations(records, field) {
+  const durations = [];
+  let start = null;
+  records.forEach((record) => {
+    const current = record[field] === 1 ? 1 : 0;
+    const time = record.date?.getTime();
+    if (!Number.isFinite(time)) return;
+    if (current === 1 && start === null) start = time;
+    if (current === 0 && start !== null) { durations.push((time - start) / 1000); start = null; }
+  });
+  return durations;
+}
+function averageIntervalMinutes(starts) {
+  if (starts.length < 2) return null;
+  const gaps = starts.slice(1).map((time, index) => (time - starts[index]) / 60000);
+  return summarize(gaps);
+}
+function formatHours(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return "--";
+  const hours = ms / 3600000;
+  if (hours < 1) return `${Math.round(ms / 60000)} min`;
+  return `${hours.toFixed(hours < 10 ? 1 : 0)} h`;
+}
+function timerConfigFor(actuator) {
+  const timer = (state.config || {}).timer || timerDefaults;
+  const fallback = timerDefaults[actuator]?.defaultCycle || {};
+  return getDefaultCycleMinutes(timer?.[actuator]?.defaultCycle || {}, fallback);
+}
+function eventMatchesActuator(event, field) {
+  const relayText = String(event?.relay || "").toLowerCase();
+  if (field === "relay1") return relayText.includes("relay1") || relayText.includes("humid");
+  if (field === "relay2") return relayText.includes("relay2") || relayText.includes("vent") || relayText.includes("extract") || relayText.includes("intract");
+  return false;
+}
+function analyzeActuatorTimer(records, field, actuator, events = []) {
+  const starts = getActivationStarts(records, field);
+  const eventDurations = events.filter((event) => eventMatchesActuator(event, field) && event.durationSec !== null).map((event) => event.durationSec);
+  const durations = eventDurations.length ? eventDurations : getOnDurations(records, field);
+  const interval = averageIntervalMinutes(starts);
+  const durationAvg = summarize(durations);
+  const cfg = timerConfigFor(actuator);
+  const compatible = interval !== null && cfg.offMin ? Math.abs(interval - cfg.offMin) <= Math.max(3, cfg.offMin * 0.25) : null;
+  return { starts, activations: starts.length, interval, durationAvg, cfg, compatible };
+}
+function timerStatusText(analysis) {
+  if (analysis.activations < 2) return "Todavía no hay suficientes activaciones para validar el timer.";
+  if (analysis.compatible === true) return "Compatible con el ciclo configurado.";
+  if (analysis.compatible === false) return "Revisar: el intervalo detectado no coincide con lo configurado.";
+  return "Activaciones detectadas; faltan datos de configuración para comparar.";
+}
+function renderTimerAnalysis(records, events = []) {
+  const analyses = [
+    { title: "Humidificador", data: analyzeActuatorTimer(records, "relay1", "humidifier", events) },
+    { title: "Ventilación", data: analyzeActuatorTimer(records, "relay2", "ventilation", events) }
+  ];
+  els.timerAnalysis.innerHTML = analyses.map(({ title, data }) => `
+    <article class="timer-analysis-card ${data.compatible === false ? "needs-review" : ""}">
+      <h4>${title}</h4>
+      <p><strong>Configurado:</strong> ${formatMinutesValue(data.cfg.onMin)} min cada ${formatMinutesValue(data.cfg.offMin)} min</p>
+      <p><strong>Detectado:</strong> ${data.activations} activaciones</p>
+      <p><strong>Intervalo promedio:</strong> ${data.interval === null ? "--" : `${data.interval.toFixed(1)} min`}</p>
+      <p><strong>Duración promedio ON:</strong> ${data.durationAvg === null ? "--" : `${data.durationAvg.toFixed(0)} s`}</p>
+      <p><strong>Estado:</strong> ${timerStatusText(data)}</p>
+    </article>
+  `).join("");
+  return analyses;
+}
+function averageAroundActivations(records, field, sensorField) {
+  const starts = getActivationStarts(records, field);
+  const deltas = starts.map((start) => {
+    const before = records.filter((r) => r.date && r.date.getTime() >= start - 10*60000 && r.date.getTime() < start).map((r) => r[sensorField]).filter((v) => v !== null);
+    const after = records.filter((r) => r.date && r.date.getTime() > start && r.date.getTime() <= start + 10*60000).map((r) => r[sensorField]).filter((v) => v !== null);
+    const b = summarize(before); const a = summarize(after);
+    return b !== null && a !== null ? a - b : null;
+  }).filter((value) => value !== null);
+  return summarize(deltas);
+}
+function renderQuickRead(records, preparedRecords, ranges, co2Stats) {
+  const humDelta = averageAroundActivations(preparedRecords, "relay1", "humedadAmbiente");
+  const ventHumDelta = averageAroundActivations(preparedRecords, "relay2", "humedadAmbiente");
+  const ventCo2Delta = averageAroundActivations(preparedRecords, "relay2", "co2");
+  const humVals = preparedRecords.map((r) => r.humedadAmbiente).filter((v) => v !== null);
+  const humHigh = humVals.length ? humVals.filter((v) => v > ranges.hum.yMax).length / humVals.length : 0;
+  const messages = [];
+  if (humDelta !== null) messages.push(humDelta >= -0.3 ? "Después de activarse el humidificador, la humedad tendió a subir o sostenerse." : "Después de activarse el humidificador, la humedad no mostró una suba clara.");
+  else messages.push("Aún no hay suficientes datos para medir el efecto del humidificador.");
+  if (ventHumDelta !== null) messages.push(ventHumDelta < -0.3 ? "Después de activarse la ventilación, la humedad tendió a bajar." : "La ventilación no mostró una baja clara de humedad en este rango.");
+  if (co2Stats.validRatio < 0.25) messages.push("No se puede analizar CO2 porque el sensor entregó pocos valores confiables.");
+  else if (ventCo2Delta !== null) messages.push(ventCo2Delta < 0 ? "Después de activarse la ventilación, el CO2 tendió a bajar." : "El CO2 no bajó claramente después de las activaciones de ventilación.");
+  if (humHigh > 0.55) messages.push("La humedad estuvo por encima del rango recomendado durante gran parte del período.");
+  if (!messages.length) messages.push("Seleccioná un rango con más mediciones para obtener una lectura operativa más útil.");
+  els.quickReadList.innerHTML = messages.map((message) => `<article class="insight-card info"><span>ℹ️</span><p>${message}</p></article>`).join("");
+  return messages;
+}
+function summaryCard(label, value, hint="") { return `<article class="summary-card"><span>${label}</span><strong>${value}</strong>${hint ? `<small>${hint}</small>` : ""}</article>`; }
 
 async function fetchAndRenderCharts(){
   const range = getChartRangeSelection();
   if (typeof Chart === "undefined") { setChartsStatus("No se pudo cargar Chart.js. El resto del dashboard sigue disponible.", true); destroyCharts(); diag.chartsState = "Error"; updateDiagnostics(); return; }
   setChartsStatus("Cargando datos históricos…");
   try {
-    const path = buildHistoryChartPath(range);
-    const data = await fetchCollection(path);
-    let records = normalizeHistoryRecords(data);
-    if (range === "24h") { const cutoff = Date.now() - 24*60*60*1000; records = records.filter(r=>r.date && r.date.getTime()>=cutoff); }
+    const [data, eventsData] = await Promise.all([
+      fetchCollection(buildHistoryChartPath(range)),
+      fetchCollection(`/devices/${DEVICE_ID}/events.json?orderBy=%22$key%22&limitToLast=1000`).catch(() => null)
+    ]);
+    let records = applySelectedRange(normalizeHistoryRecords(data), range);
     if (!records.length) { setChartsStatus("No hay datos suficientes para graficar."); destroyCharts(); diag.chartsCount = "0"; diag.chartsState = "Sin datos"; diag.chartsLastLoad = formatTimestamp(Date.now()); updateDiagnostics(); return; }
-    const { sortedRecords, chartLabels } = buildSharedTimeAxis(records);
-    const excludeSuspect = shouldExcludeSuspectData();
-    const { prepared: chartRecords, discarded } = prepareChartRecords(sortedRecords, excludeSuspect);
-    const tempVals = chartRecords.filter(r=>r.temperatura!==null).map(r=>r.temperatura);
-    const humVals = chartRecords.filter(r=>r.humedadAmbiente!==null).map(r=>r.humedadAmbiente);
-    const co2Vals = chartRecords.filter(r=>r.co2!==null).map(r=>r.co2);
+    const options = { excludeInvalidCo2: shouldExcludeInvalidCo2(), excludeSuspect: shouldExcludeSuspectData() };
+    const preparedInfo = prepareChartRecords(records, options);
+    const resolution = getChartResolutionMinutes();
+    const chartRecords = groupChartRecords(preparedInfo.prepared, resolution);
+    const rawRecords = shouldShowRawData() ? records : [];
+    const minTime = records[0].date.getTime();
+    const maxTime = records[records.length - 1].date.getTime();
+    const tickLimit = getChartTickLimit();
     const cfg=state.config||{};
-    const tempRange = { yMin: toNumberOrNull(cfg.tempMin), yMax: toNumberOrNull(cfg.tempMax) };
-    const humRange = { yMin: toNumberOrNull(cfg.humMin), yMax: toNumberOrNull(cfg.humMax) };
-    const co2Range = { yMin: toNumberOrNull(cfg.co2Min), yMax: toNumberOrNull(cfg.co2Max) };
+    const ranges = {
+      temp: getConfiguredRange(cfg, "tempMin", "tempMax", 16, 21),
+      hum: getConfiguredRange(cfg, "humMin", "humMax", 80, 95),
+      co2: getConfiguredRange(cfg, "co2Min", "co2Max", 850, 1100)
+    };
     destroyCharts();
-    chartInstances.temp = createLineChart(els.tempChart,"Temperatura (°C)",chartLabels,chartRecords.map(r=>r.temperatura),"#2ca76b",false,tempRange);
-    chartInstances.hum = createLineChart(els.humChart,"Humedad (%)",chartLabels,chartRecords.map(r=>r.humedadAmbiente),"#2e8b9f",false,humRange);
-    chartInstances.humidifier = createLineChart(els.humidifierChart,"Humidificador",chartLabels,sortedRecords.map(r=>r.relay1),"#3b82f6",true,null,{min:0,max:1,ticks:{stepSize:1,callback:(v)=>v===1?"ON":"OFF"}});
-    chartInstances.ventilation = createLineChart(els.ventilationChart,"Ventilación",chartLabels,sortedRecords.map(r=>r.relay2),"#f97316",true,null,{min:0,max:1,ticks:{stepSize:1,callback:(v)=>v===1?"ON":"OFF"}});
-    chartInstances.co2 = createLineChart(els.co2Chart,"CO2 (ppm)",chartLabels,chartRecords.map(r=>r.co2),"#0f766e",false,co2Range);
-    els.tempReference.textContent = `Rango SET activo: ${formatValue(cfg.tempMin)} – ${formatValue(cfg.tempMax)} °C`;
-    els.humReference.textContent = `Rango SET activo: ${formatValue(cfg.humMin)} – ${formatValue(cfg.humMax)} %`;
-    els.co2Reference.textContent = `Rango SET activo: ${formatValue(cfg.co2Min)} – ${formatValue(cfg.co2Max)} ppm`;
-    const humIn = pctInRange(humVals,toNumberOrNull(cfg.humMin),toNumberOrNull(cfg.humMax));
-    const co2In = pctInRange(co2Vals,toNumberOrNull(cfg.co2Min),toNumberOrNull(cfg.co2Max));
-    const validMeasurements = excludeSuspect ? sortedRecords.length - discarded : sortedRecords.length;
-    els.chartsSummary.innerHTML = `<p>Promedio temperatura: <strong>${summarize(tempVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio humedad: <strong>${summarize(humVals)?.toFixed(2) ?? "--"}</strong></p><p>Promedio CO2: <strong>${summarize(co2Vals)?.toFixed(2) ?? "--"}</strong></p><p>Máximo CO2: <strong>${co2Vals.length ? Math.max(...co2Vals).toFixed(2) : "--"}</strong></p><p>Mediciones totales: <strong>${sortedRecords.length}</strong></p><p>Mediciones válidas: <strong>${validMeasurements}</strong></p><p>Mediciones descartadas: <strong>${excludeSuspect ? discarded : 0}</strong></p><p>Humedad en rango: <strong>${humIn===null?"--":humIn.toFixed(1)+"%"}</strong></p><p>CO2 en rango: <strong>${co2In===null?"--":co2In.toFixed(1)+"%"}</strong></p>`;
-    const filterText = excludeSuspect ? ` · ${discarded} mediciones con puntos filtrados visualmente` : " · mostrando todos los datos";
-    setChartsStatus(`Mostrando ${sortedRecords.length} mediciones para gráficos${filterText}.`);
-    diag.chartsLastLoad = formatTimestamp(Date.now()); diag.chartsCount = String(sortedRecords.length); diag.chartsState = "OK"; updateDiagnostics();
+    const common = { minTime, maxTime, maxTicksLimit: tickLimit };
+    chartInstances.temp = createLineChart(els.tempChart,"Temperatura",chartRecords,"temperatura","#2ca76b",{...common,unit:"°C",optimalRange:ranges.temp});
+    chartInstances.hum = createLineChart(els.humChart,"Humedad ambiente",chartRecords,"humedadAmbiente","#2e8b9f",{...common,unit:"%",optimalRange:ranges.hum});
+    chartInstances.humidifier = createLineChart(els.humidifierChart,"Humidificador",chartRecords,"relay1","#3b82f6",{...common,actuator:true,yAxisConfig:{min:0,max:1,ticks:{stepSize:1,callback:(v)=>v===1?"ON":"OFF"}}});
+    chartInstances.ventilation = createLineChart(els.ventilationChart,"Ventilación",chartRecords,"relay2","#f97316",{...common,actuator:true,yAxisConfig:{min:0,max:1,ticks:{stepSize:1,callback:(v)=>v===1?"ON":"OFF"}}});
+    chartInstances.co2 = createLineChart(els.co2Chart,"CO2",chartRecords,"co2","#0f766e",{...common,unit:"ppm",optimalRange:ranges.co2});
+    if (rawRecords.length && resolution > 0) {
+      const addRaw = (chart, field, label) => chart?.data?.datasets?.push({ label, data: rawRecords.map((r) => chartPoint(r, field)), borderColor:"rgba(100,116,139,.35)", backgroundColor:"rgba(100,116,139,.35)", pointRadius:0, borderWidth:1, tension:0, parsing:false });
+      addRaw(chartInstances.temp, "temperatura", "Temperatura cruda"); addRaw(chartInstances.hum, "humedadAmbiente", "Humedad cruda"); addRaw(chartInstances.co2, "co2", "CO2 crudo");
+      Object.values(chartInstances).forEach((chart) => chart?.update());
+    }
+    els.tempReference.textContent = `Rango recomendado: ${ranges.temp.yMin} – ${ranges.temp.yMax} °C`;
+    els.humReference.textContent = `Rango recomendado: ${ranges.hum.yMin} – ${ranges.hum.yMax} %`;
+    els.co2Reference.textContent = `Rango recomendado: ${ranges.co2.yMin} – ${ranges.co2.yMax} ppm`;
+    const tempVals = preparedInfo.prepared.map(r=>r.temperatura).filter(v=>v!==null);
+    const humVals = preparedInfo.prepared.map(r=>r.humedadAmbiente).filter(v=>v!==null);
+    const co2Vals = preparedInfo.prepared.map(r=>r.co2).filter(v=>v!==null);
+    const humIn = pctInRange(humVals,ranges.hum.yMin,ranges.hum.yMax);
+    const co2In = pctInRange(co2Vals,ranges.co2.yMin,ranges.co2.yMax);
+    const humidifierActivations = countActivations(records, "relay1");
+    const ventilationActivations = countActivations(records, "relay2");
+    const validMeasurements = records.length - preparedInfo.discardedRecords;
+    const co2Stats = { validRatio: records.length ? co2Vals.length / records.length : 0 };
+    els.chartsSummary.innerHTML = [
+      summaryCard("Tiempo analizado", formatHours(maxTime - minTime)),
+      summaryCard("Mediciones totales", records.length),
+      summaryCard("Mediciones válidas", validMeasurements),
+      summaryCard("Mediciones descartadas", preparedInfo.discardedRecords),
+      summaryCard("Promedio temperatura", summarize(tempVals)?.toFixed(2) ?? "--", "°C"),
+      summaryCard("Promedio humedad", summarize(humVals)?.toFixed(2) ?? "--", "%"),
+      summaryCard("Promedio CO2 válido", summarize(co2Vals)?.toFixed(0) ?? "--", "ppm"),
+      summaryCard("Humedad en rango", humIn===null?"--":`${humIn.toFixed(1)}%`),
+      summaryCard("CO2 en rango", co2In===null?"--":`${co2In.toFixed(1)}%`),
+      summaryCard("Activaciones humidificador", humidifierActivations),
+      summaryCard("Activaciones ventilación", ventilationActivations)
+    ].join("");
+    const interpretations = [];
+    if (humVals.length && summarize(humVals) > ranges.hum.yMax) interpretations.push("Humedad alta sostenida");
+    if (co2Stats.validRatio < 0.25) interpretations.push("CO2 sin datos confiables");
+    if (humidifierActivations || ventilationActivations) interpretations.push("Timer con activaciones detectadas");
+    const quickMessages = renderQuickRead(records, preparedInfo.prepared, ranges, co2Stats);
+    if (quickMessages.some((m) => m.includes("humidificador") && m.includes("subir"))) interpretations.push("Humidificador tuvo efecto visible sobre humedad");
+    if (quickMessages.some((m) => m.includes("ventilación") && m.includes("humedad tendió a bajar"))) interpretations.push("Ventilación redujo humedad después de activarse");
+    els.chartsInterpretation.innerHTML = interpretations.map((text) => `<span class="status-chip chip-ok">${text}</span>`).join("");
+    renderTimerAnalysis(records, normalizeEventRecords(eventsData));
+    els.co2FilterNotice.hidden = !(preparedInfo.invalidCo2 > 0 || co2Stats.validRatio < 0.75);
+    els.technicalChartDetails.innerHTML = `
+      <p><strong>Rango:</strong> ${range}</p><p><strong>Resolución:</strong> ${resolution ? `${resolution} min` : "datos crudos"}</p>
+      <p><strong>Divisiones:</strong> ${tickLimit}</p><p><strong>Puntos renderizados:</strong> ${chartRecords.length}</p>
+      <p><strong>CO2 inválidos filtrados:</strong> ${preparedInfo.invalidCo2}</p><p><strong>Sospechosos filtrados:</strong> ${preparedInfo.suspect}</p>
+      <p><strong>Eventos consultados:</strong> ${eventsData ? Object.keys(eventsData || {}).length : "sin datos"}</p>
+    `;
+    const allHint = range === "all" && resolution === 0 ? " Sugerencia: usá agrupamiento para períodos largos." : "";
+    const filterText = preparedInfo.discardedRecords ? ` · ${preparedInfo.discardedRecords} mediciones con puntos filtrados visualmente` : " · sin descartes visuales";
+    setChartsStatus(`Mostrando ${records.length} mediciones en ${chartRecords.length} puntos${filterText}.${allHint}`);
+    diag.chartsLastLoad = formatTimestamp(Date.now()); diag.chartsCount = String(records.length); diag.chartsState = "OK"; updateDiagnostics();
   } catch (error) { console.error("Error charts:", error); setChartsStatus("Error al cargar historial.", true); diag.chartsState = "Error"; updateDiagnostics(); }
 }
 
@@ -2018,7 +2294,11 @@ on(els.saveTimerConfig, "click", saveTimerConfig);
 on(els.saveSetpoints, "click", saveSetpoints);
 on(els.refreshCharts, "click", fetchAndRenderCharts);
 on(els.chartRangeSelect, "change", fetchAndRenderCharts);
+on(els.chartTickSelect, "change", fetchAndRenderCharts);
+on(els.chartResolutionSelect, "change", fetchAndRenderCharts);
+on(els.excludeInvalidCo2, "change", fetchAndRenderCharts);
 on(els.excludeSuspectData, "change", fetchAndRenderCharts);
+on(els.showRawData, "change", fetchAndRenderCharts);
 
 document.querySelectorAll("button[data-relay]").forEach((button) => {
   button.addEventListener("click", () => {
