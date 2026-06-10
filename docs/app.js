@@ -194,6 +194,10 @@ const els = {
   timerMutualExclusion: $("timerMutualExclusion"),
   timerDelayBetweenActuatorsSec: $("timerDelayBetweenActuatorsSec"),
   timerMutualNote: $("timerMutualNote"),
+  timerCompactSummary: $("timerCompactSummary"),
+  timerHumidifierSummary: $("timerHumidifierSummary"),
+  timerVentilationSummary: $("timerVentilationSummary"),
+  timerDelaySummary: $("timerDelaySummary"),
   timerHumidifierEnabled: $("timerHumidifierEnabled"),
   timerHumidifierDefaultOnSec: $("timerHumidifierDefaultOnSec"),
   timerHumidifierDefaultOffMin: $("timerHumidifierDefaultOffMin"),
@@ -212,6 +216,8 @@ const els = {
   timerVentilationDayOffMin: $("timerVentilationDayOffMin"),
   timerVentilationNightOnSec: $("timerVentilationNightOnSec"),
   timerVentilationNightOffMin: $("timerVentilationNightOffMin"),
+  useTimerTestValues: $("useTimerTestValues"),
+  useTimerRecommendedValues: $("useTimerRecommendedValues"),
   saveTimerConfig: $("saveTimerConfig")
 };
 
@@ -294,6 +300,41 @@ function setChip(el, text, chipClass = "chip-muted") {
 function toNumberOrNull(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseMinutesInput(value) {
+  const normalized = String(value ?? "").trim().replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function minutesToSeconds(minutes) {
+  return Math.round(minutes * 60);
+}
+
+function secondsToMinutes(seconds) {
+  const parsed = toNumberOrNull(seconds);
+  if (parsed === null) return null;
+  return Number((parsed / 60).toFixed(4));
+}
+
+function formatMinutesValue(minutes) {
+  const parsed = toNumberOrNull(minutes);
+  if (parsed === null) return "";
+  return Number(parsed.toFixed(4)).toLocaleString("es-AR", { maximumFractionDigits: 4 });
+}
+
+function formatDurationFromMinutes(minutes) {
+  const parsed = toNumberOrNull(minutes);
+  if (parsed === null) return "--";
+  const totalSeconds = minutesToSeconds(parsed);
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  const parts = [];
+  if (mins > 0) parts.push(`${mins} ${mins === 1 ? "minuto" : "minutos"}`);
+  if (secs > 0 || parts.length === 0) parts.push(`${secs} ${secs === 1 ? "segundo" : "segundos"}`);
+  return parts.join(" ");
 }
 
 function updateCalibrationView() {
@@ -1110,7 +1151,7 @@ async function disableCalibration() {
 
 const timerDefaults = {
   enabled: true,
-  mode: "schedule",
+  mode: "cycle",
   timezone: "America/Argentina/Tucuman",
   mutualExclusion: true,
   delayBetweenActuatorsSec: 30,
@@ -1154,8 +1195,50 @@ function updateTimerVisibility(mode) {
   if (els.timerConfigSection) els.timerConfigSection.hidden = !visible;
 }
 
+function getDefaultCycleMinutes(cycle = {}, fallback = {}) {
+  const onMin = toNumberOrNull(cycle.onMinUi) ?? secondsToMinutes(cycle.onSec) ?? secondsToMinutes(fallback.onSec) ?? 0;
+  const offMin = toNumberOrNull(cycle.offMinUi) ?? toNumberOrNull(cycle.offMin) ?? toNumberOrNull(fallback.offMin) ?? 0;
+  return { onMin, offMin };
+}
+
 function updateTimerMutualNote() {
-  if (els.timerMutualNote) els.timerMutualNote.hidden = els.timerMutualExclusion?.value !== "true";
+  const bothEnabled = readSelectBoolean(els.timerHumidifierEnabled) && readSelectBoolean(els.timerVentilationEnabled);
+  const mutualEnabled = readSelectBoolean(els.timerMutualExclusion);
+  if (!els.timerMutualNote) return;
+  els.timerMutualNote.hidden = false;
+  els.timerMutualNote.textContent = bothEnabled && !mutualEnabled
+    ? "Advertencia: ambos equipos podrían funcionar al mismo tiempo."
+    : "Humidificador y ventilación no funcionarán al mismo tiempo.";
+}
+
+function updateTimerSummaries() {
+  const humidifierOn = parseMinutesInput(els.timerHumidifierDefaultOnSec?.value);
+  const humidifierEvery = parseMinutesInput(els.timerHumidifierDefaultOffMin?.value);
+  const ventilationOn = parseMinutesInput(els.timerVentilationDefaultOnSec?.value);
+  const ventilationEvery = parseMinutesInput(els.timerVentilationDefaultOffMin?.value);
+  const delay = parseMinutesInput(els.timerDelayBetweenActuatorsSec?.value);
+  const humidifierText = humidifierOn !== null && humidifierEvery !== null
+    ? `El humidificador se encenderá ${formatDurationFromMinutes(humidifierOn)} cada ${formatDurationFromMinutes(humidifierEvery)}.`
+    : "Ingresá los minutos del humidificador para ver el resumen.";
+  const ventilationText = ventilationOn !== null && ventilationEvery !== null
+    ? `La ventilación se encenderá ${formatDurationFromMinutes(ventilationOn)} cada ${formatDurationFromMinutes(ventilationEvery)}.`
+    : "Ingresá los minutos de ventilación para ver el resumen.";
+  const delayText = delay !== null
+    ? `Entre un equipo y otro habrá una pausa de ${formatDurationFromMinutes(delay)}.`
+    : "Ingresá la pausa entre equipos para ver el resumen.";
+  els.timerHumidifierSummary.textContent = humidifierText;
+  els.timerVentilationSummary.textContent = ventilationText;
+  els.timerDelaySummary.textContent = delayText;
+  if (els.timerCompactSummary) {
+    const exclusion = readSelectBoolean(els.timerMutualExclusion) ? "activada" : "desactivada";
+    els.timerCompactSummary.innerHTML = `
+      <p><strong>Humidificador:</strong> ${humidifierOn !== null && humidifierEvery !== null ? `${formatMinutesValue(humidifierOn)} min encendido cada ${formatMinutesValue(humidifierEvery)} min` : "--"}</p>
+      <p><strong>Ventilación:</strong> ${ventilationOn !== null && ventilationEvery !== null ? `${formatMinutesValue(ventilationOn)} min encendida cada ${formatMinutesValue(ventilationEvery)} min` : "--"}</p>
+      <p><strong>Pausa:</strong> ${delay !== null ? `${formatMinutesValue(delay)} min` : "--"}</p>
+      <p><strong>Exclusión mutua:</strong> ${exclusion}</p>
+    `;
+  }
+  updateTimerMutualNote();
 }
 
 function hydrateTimerForm(timer = {}) {
@@ -1179,15 +1262,18 @@ function hydrateTimerForm(timer = {}) {
   const humidifierNight = merged.humidifier.windows?.[1] || timerDefaults.humidifier.windows[1];
   const ventilationDay = merged.ventilation.windows?.[0] || timerDefaults.ventilation.windows[0];
   const ventilationNight = merged.ventilation.windows?.[1] || timerDefaults.ventilation.windows[1];
+  const humidifierDefault = getDefaultCycleMinutes(merged.humidifier.defaultCycle, timerDefaults.humidifier.defaultCycle);
+  const ventilationDefault = getDefaultCycleMinutes(merged.ventilation.defaultCycle, timerDefaults.ventilation.defaultCycle);
+  const delayMinutes = toNumberOrNull(merged.delayBetweenActuatorsMinUi) ?? secondsToMinutes(merged.delayBetweenActuatorsSec) ?? secondsToMinutes(timerDefaults.delayBetweenActuatorsSec);
 
   setSelectBoolean(els.timerEnabled, merged.enabled);
-  setInputValue(els.timerMode, merged.mode === "cycle" ? "cycle" : "schedule");
+  setInputValue(els.timerMode, merged.mode === "schedule" ? "schedule" : "cycle");
   setInputValue(els.timerTimezone, merged.timezone || timerDefaults.timezone);
   setSelectBoolean(els.timerMutualExclusion, merged.mutualExclusion);
-  setInputValue(els.timerDelayBetweenActuatorsSec, merged.delayBetweenActuatorsSec);
+  setInputValue(els.timerDelayBetweenActuatorsSec, formatMinutesValue(delayMinutes));
   setSelectBoolean(els.timerHumidifierEnabled, merged.humidifier.enabled);
-  setInputValue(els.timerHumidifierDefaultOnSec, merged.humidifier.defaultCycle.onSec);
-  setInputValue(els.timerHumidifierDefaultOffMin, merged.humidifier.defaultCycle.offMin);
+  setInputValue(els.timerHumidifierDefaultOnSec, formatMinutesValue(humidifierDefault.onMin));
+  setInputValue(els.timerHumidifierDefaultOffMin, formatMinutesValue(humidifierDefault.offMin));
   setInputValue(els.timerHumidifierDayStart, humidifierDay.start);
   setInputValue(els.timerHumidifierDayEnd, humidifierDay.end);
   setInputValue(els.timerHumidifierDayOnSec, humidifierDay.onSec);
@@ -1195,21 +1281,29 @@ function hydrateTimerForm(timer = {}) {
   setInputValue(els.timerHumidifierNightOnSec, humidifierNight.onSec);
   setInputValue(els.timerHumidifierNightOffMin, humidifierNight.offMin);
   setSelectBoolean(els.timerVentilationEnabled, merged.ventilation.enabled);
-  setInputValue(els.timerVentilationDefaultOnSec, merged.ventilation.defaultCycle.onSec);
-  setInputValue(els.timerVentilationDefaultOffMin, merged.ventilation.defaultCycle.offMin);
+  setInputValue(els.timerVentilationDefaultOnSec, formatMinutesValue(ventilationDefault.onMin));
+  setInputValue(els.timerVentilationDefaultOffMin, formatMinutesValue(ventilationDefault.offMin));
   setInputValue(els.timerVentilationDayStart, ventilationDay.start);
   setInputValue(els.timerVentilationDayEnd, ventilationDay.end);
   setInputValue(els.timerVentilationDayOnSec, ventilationDay.onSec);
   setInputValue(els.timerVentilationDayOffMin, ventilationDay.offMin);
   setInputValue(els.timerVentilationNightOnSec, ventilationNight.onSec);
   setInputValue(els.timerVentilationNightOffMin, ventilationNight.offMin);
-  updateTimerMutualNote();
+  updateTimerSummaries();
 }
 
 function readTimerNumber(id, min, max, label) {
   const value = toNumberOrNull(els[id]?.value);
   if (value === null || value < min || value > max) {
     throw new Error(`${label} debe estar entre ${min} y ${max}.`);
+  }
+  return value;
+}
+
+function readTimerMinutes(id, min, max) {
+  const value = parseMinutesInput(els[id]?.value);
+  if (value === null || value < min || value > max) {
+    throw new Error("Ingresá un tiempo válido en minutos. Podés usar decimales, por ejemplo 0,5.");
   }
   return value;
 }
@@ -1222,66 +1316,107 @@ function readTimerTime(id, label) {
   return value;
 }
 
+function applyTimerPreset(preset) {
+  setSelectBoolean(els.timerHumidifierEnabled, preset.humidifier.enabled);
+  setInputValue(els.timerHumidifierDefaultOnSec, preset.humidifier.onMin);
+  setInputValue(els.timerHumidifierDefaultOffMin, preset.humidifier.offMin);
+  setSelectBoolean(els.timerVentilationEnabled, preset.ventilation.enabled);
+  setInputValue(els.timerVentilationDefaultOnSec, preset.ventilation.onMin);
+  setInputValue(els.timerVentilationDefaultOffMin, preset.ventilation.offMin);
+  setSelectBoolean(els.timerMutualExclusion, preset.mutualExclusion);
+  setInputValue(els.timerDelayBetweenActuatorsSec, preset.delayMin);
+  updateTimerSummaries();
+  els.timerStatus.textContent = "Valores cargados en pantalla. Revisá y guardá para enviarlos a Firebase.";
+}
+
+function useTimerTestValues() {
+  applyTimerPreset({
+    humidifier: { enabled: true, onMin: "0,5", offMin: "1" },
+    ventilation: { enabled: false, onMin: "0,5", offMin: "1" },
+    mutualExclusion: true,
+    delayMin: "0,5"
+  });
+}
+
+function useTimerRecommendedValues() {
+  applyTimerPreset({
+    humidifier: { enabled: true, onMin: "0,75", offMin: "10" },
+    ventilation: { enabled: true, onMin: "1", offMin: "15" },
+    mutualExclusion: true,
+    delayMin: "0,5"
+  });
+}
+
 function buildTimerPayload() {
+  const humidifierOnMin = readTimerMinutes("timerHumidifierDefaultOnSec", 0.1, 10);
+  const humidifierOffMin = readTimerMinutes("timerHumidifierDefaultOffMin", 0.5, 240);
+  const ventilationOnMin = readTimerMinutes("timerVentilationDefaultOnSec", 0.1, 10);
+  const ventilationOffMin = readTimerMinutes("timerVentilationDefaultOffMin", 0.5, 240);
+  const delayBetweenActuatorsMin = readTimerMinutes("timerDelayBetweenActuatorsSec", 0, 10);
   const humidifierDayStart = readTimerTime("timerHumidifierDayStart", "Franja día/calor inicio humidificador");
   const humidifierDayEnd = readTimerTime("timerHumidifierDayEnd", "Franja día/calor fin humidificador");
   const ventilationDayStart = readTimerTime("timerVentilationDayStart", "Franja día/calor inicio ventilación");
   const ventilationDayEnd = readTimerTime("timerVentilationDayEnd", "Franja día/calor fin ventilación");
   return {
     enabled: readSelectBoolean(els.timerEnabled),
-    mode: els.timerMode?.value === "cycle" ? "cycle" : "schedule",
+    mode: els.timerMode?.value === "schedule" ? "schedule" : "cycle",
     timezone: (els.timerTimezone?.value || timerDefaults.timezone).trim() || timerDefaults.timezone,
     mutualExclusion: readSelectBoolean(els.timerMutualExclusion),
-    delayBetweenActuatorsSec: readTimerNumber("timerDelayBetweenActuatorsSec", 0, 600, "Pausa entre actuadores"),
+    delayBetweenActuatorsSec: minutesToSeconds(delayBetweenActuatorsMin),
+    delayBetweenActuatorsMinUi: delayBetweenActuatorsMin,
     fallbackIfSensorsInvalid: true,
     humidifier: {
       enabled: readSelectBoolean(els.timerHumidifierEnabled),
       defaultCycle: {
-        onSec: readTimerNumber("timerHumidifierDefaultOnSec", 5, 600, "ON humidificador"),
-        offMin: readTimerNumber("timerHumidifierDefaultOffMin", 1, 240, "OFF humidificador")
+        onSec: minutesToSeconds(humidifierOnMin),
+        offMin: humidifierOffMin,
+        onMinUi: humidifierOnMin,
+        offMinUi: humidifierOffMin
       },
       windows: [
         {
           name: "Horas de mayor calor",
           start: humidifierDayStart,
           end: humidifierDayEnd,
-          onSec: readTimerNumber("timerHumidifierDayOnSec", 5, 600, "ON día/calor humidificador"),
-          offMin: readTimerNumber("timerHumidifierDayOffMin", 1, 240, "OFF día/calor humidificador")
+          onSec: readTimerNumber("timerHumidifierDayOnSec", 5, 600, "Encendido día/calor humidificador"),
+          offMin: readTimerNumber("timerHumidifierDayOffMin", 1, 240, "Repetición día/calor humidificador")
         },
         {
           name: "Noche",
           start: humidifierDayEnd,
           end: humidifierDayStart,
-          onSec: readTimerNumber("timerHumidifierNightOnSec", 5, 600, "ON noche humidificador"),
-          offMin: readTimerNumber("timerHumidifierNightOffMin", 1, 240, "OFF noche humidificador")
+          onSec: readTimerNumber("timerHumidifierNightOnSec", 5, 600, "Encendido noche humidificador"),
+          offMin: readTimerNumber("timerHumidifierNightOffMin", 1, 240, "Repetición noche humidificador")
         }
       ]
     },
     ventilation: {
       enabled: readSelectBoolean(els.timerVentilationEnabled),
       defaultCycle: {
-        onSec: readTimerNumber("timerVentilationDefaultOnSec", 5, 600, "ON ventilación"),
-        offMin: readTimerNumber("timerVentilationDefaultOffMin", 1, 240, "OFF ventilación")
+        onSec: minutesToSeconds(ventilationOnMin),
+        offMin: ventilationOffMin,
+        onMinUi: ventilationOnMin,
+        offMinUi: ventilationOffMin
       },
       windows: [
         {
           name: "Horas de mayor calor",
           start: ventilationDayStart,
           end: ventilationDayEnd,
-          onSec: readTimerNumber("timerVentilationDayOnSec", 5, 600, "ON día/calor ventilación"),
-          offMin: readTimerNumber("timerVentilationDayOffMin", 1, 240, "OFF día/calor ventilación")
+          onSec: readTimerNumber("timerVentilationDayOnSec", 5, 600, "Encendido día/calor ventilación"),
+          offMin: readTimerNumber("timerVentilationDayOffMin", 1, 240, "Repetición día/calor ventilación")
         },
         {
           name: "Noche",
           start: ventilationDayEnd,
           end: ventilationDayStart,
-          onSec: readTimerNumber("timerVentilationNightOnSec", 5, 600, "ON noche ventilación"),
-          offMin: readTimerNumber("timerVentilationNightOffMin", 1, 240, "OFF noche ventilación")
+          onSec: readTimerNumber("timerVentilationNightOnSec", 5, 600, "Encendido noche ventilación"),
+          offMin: readTimerNumber("timerVentilationNightOffMin", 1, 240, "Repetición noche ventilación")
         }
       ]
     },
     updatedAtWeb: new Date().toISOString(),
-    updatedFrom: "dashboard_timer_config"
+    updatedFrom: "dashboard_timer_simple_minutes"
   };
 }
 
@@ -1359,10 +1494,47 @@ function renderAutomaticDecision() {
   els.autoDecisionStatus.textContent = "Esperando datos suficientes.";
 }
 
+function buildTimerCompactLines(timer = {}) {
+  const merged = {
+    ...timerDefaults,
+    ...timer,
+    humidifier: {
+      ...timerDefaults.humidifier,
+      ...(timer.humidifier || {}),
+      defaultCycle: { ...timerDefaults.humidifier.defaultCycle, ...((timer.humidifier || {}).defaultCycle || {}) }
+    },
+    ventilation: {
+      ...timerDefaults.ventilation,
+      ...(timer.ventilation || {}),
+      defaultCycle: { ...timerDefaults.ventilation.defaultCycle, ...((timer.ventilation || {}).defaultCycle || {}) }
+    }
+  };
+  const humidifier = getDefaultCycleMinutes(merged.humidifier.defaultCycle, timerDefaults.humidifier.defaultCycle);
+  const ventilation = getDefaultCycleMinutes(merged.ventilation.defaultCycle, timerDefaults.ventilation.defaultCycle);
+  const delay = toNumberOrNull(merged.delayBetweenActuatorsMinUi) ?? secondsToMinutes(merged.delayBetweenActuatorsSec) ?? 0;
+  return {
+    humidifier: `${formatMinutesValue(humidifier.onMin)} min encendido cada ${formatMinutesValue(humidifier.offMin)} min`,
+    ventilation: `${formatMinutesValue(ventilation.onMin)} min encendida cada ${formatMinutesValue(ventilation.offMin)} min`,
+    delay: `${formatMinutesValue(delay)} min`,
+    exclusion: merged.mutualExclusion === true ? "activada" : "desactivada"
+  };
+}
+
 function renderSetSummary() {
   const config = state.config;
   if (!config) {
     els.activeSetSummary.innerHTML = "<p>Esperando configuración...</p>";
+    return;
+  }
+  if (getTimerMode(config.mode) === "timer") {
+    const timerLines = buildTimerCompactLines(config.timer || timerDefaults);
+    els.activeSetSummary.innerHTML = `
+      <p><strong>Timer:</strong></p>
+      <p><strong>Humidificador:</strong> ${timerLines.humidifier}</p>
+      <p><strong>Ventilación:</strong> ${timerLines.ventilation}</p>
+      <p><strong>Pausa:</strong> ${timerLines.delay}</p>
+      <p><strong>Exclusión mutua:</strong> ${timerLines.exclusion}</p>
+    `;
     return;
   }
   const co2Min = formatValue(config.co2Min);
@@ -1483,7 +1655,16 @@ on(els.disableCalibration, "click", disableCalibration);
 on(els.saveSensorAmbientType, "click", saveSensorAmbientType);
 on(els.applyMode, "click", applyMode);
 on(els.modeSelect, "change", () => updateTimerVisibility(getTimerMode(els.modeSelect.value)));
-on(els.timerMutualExclusion, "change", updateTimerMutualNote);
+on(els.timerMutualExclusion, "change", updateTimerSummaries);
+on(els.timerHumidifierEnabled, "change", updateTimerSummaries);
+on(els.timerVentilationEnabled, "change", updateTimerSummaries);
+on(els.timerDelayBetweenActuatorsSec, "input", updateTimerSummaries);
+on(els.timerHumidifierDefaultOnSec, "input", updateTimerSummaries);
+on(els.timerHumidifierDefaultOffMin, "input", updateTimerSummaries);
+on(els.timerVentilationDefaultOnSec, "input", updateTimerSummaries);
+on(els.timerVentilationDefaultOffMin, "input", updateTimerSummaries);
+on(els.useTimerTestValues, "click", useTimerTestValues);
+on(els.useTimerRecommendedValues, "click", useTimerRecommendedValues);
 on(els.saveTimerConfig, "click", saveTimerConfig);
 on(els.saveSetpoints, "click", saveSetpoints);
 on(els.refreshCharts, "click", fetchAndRenderCharts);
