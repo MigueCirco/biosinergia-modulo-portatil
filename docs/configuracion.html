@@ -210,47 +210,155 @@
         </details>
       </section>
 
-      <section class="card section-block">
-        <h3 class="section-title">Configuración automática / SETs</h3>
-        <p id="setpointsStatus" class="muted">Cargando SETs...</p>
-        <div class="setpoint-group">
-          <h4>CO2 / ventilación</h4>
-          <div class="reference-grid">
-            <label>co2Min <input id="co2Min" type="number" step="0.01" /></label>
-            <label>co2Max <input id="co2Max" type="number" step="0.01" /></label>
-            <label>minVentilationOnSec <input id="minVentilationOnSec" type="number" step="1" /></label>
-            <label>minVentilationOffSec <input id="minVentilationOffSec" type="number" step="1" /></label>
-            <label>delayAfterVentilationSec <input id="delayAfterVentilationSec" type="number" step="1" /></label>
+      <section class="card section-block auto-config-section">
+        <div class="auto-section-head">
+          <div>
+            <h3 class="section-title">Modo automático</h3>
+            <p class="auto-lead">El sistema toma decisiones solo según temperatura, humedad y CO2.</p>
+            <p class="muted">Definí los rangos deseados y los tiempos mínimos de funcionamiento para cada equipo.</p>
+          </div>
+          <p id="setpointsStatus" class="status-chip chip-muted">Cargando SETs...</p>
+        </div>
+
+        <div class="auto-summary-card" aria-live="polite">
+          <div class="auto-summary-copy">
+            <h4>Resumen de operación</h4>
+            <p>En automático, el sistema intentará mantener la humedad, el CO2 y la temperatura dentro de estos rangos.</p>
+          </div>
+          <div id="autoSummaryChips" class="auto-chip-grid">
+            <span class="auto-chip">Humedad ideal: --</span>
+            <span class="auto-chip">CO2 ideal: --</span>
+            <span class="auto-chip">Temperatura ideal: --</span>
+            <span class="auto-chip">Seguridad térmica: --</span>
+            <span class="auto-chip">Humidificador: --</span>
+            <span class="auto-chip">Ventilación: --</span>
+            <span class="auto-chip">Exclusión mutua: --</span>
           </div>
         </div>
-        <div class="setpoint-group">
-          <h4>Humedad / humidificador</h4>
-          <div class="reference-grid">
-            <label>humMin <input id="humMin" type="number" step="0.01" /></label>
-            <label>humMax <input id="humMax" type="number" step="0.01" /></label>
-            <label>minHumidifierOnSec <input id="minHumidifierOnSec" type="number" step="1" /></label>
-            <label>minHumidifierOffSec <input id="minHumidifierOffSec" type="number" step="1" /></label>
-          </div>
+
+        <div id="autoValidationPanel" class="auto-validation-panel" hidden>
+          <strong>Revisá estos puntos antes de guardar:</strong>
+          <ul id="autoValidationList"></ul>
         </div>
-        <div class="setpoint-group">
-          <h4>Temperatura / seguridad</h4>
-          <div class="reference-grid">
-            <label>tempMin <input id="tempMin" type="number" step="0.01" /></label>
-            <label>tempMax <input id="tempMax" type="number" step="0.01" /></label>
-            <label>tempCritical <input id="tempCritical" type="number" step="0.01" /></label>
-          </div>
+
+        <div class="auto-block-title">
+          <h4>Configuración simple</h4>
+          <p class="muted">Lo esencial para operar el cultivo día a día.</p>
         </div>
-        <div class="setpoint-group">
-          <h4>Reglas del sistema</h4>
-          <div class="reference-grid">
-            <label>mutualExclusion
-              <select id="mutualExclusion"><option value="true">true</option><option value="false">false</option></select>
-            </label>
-            <label>crop <input id="crop" type="text" /></label>
-          </div>
+
+        <div class="auto-cards-grid">
+          <article class="auto-setting-card">
+            <h4>💧 Humedad ambiente</h4>
+            <p class="muted">Rango recomendado para fructificación de Melena de León: alto, sin saturación constante.</p>
+            <div class="auto-field-grid">
+              <label>Humedad mínima deseada (%)
+                <input id="humMin" type="number" min="0" max="100" step="0.01" inputmode="decimal" />
+              </label>
+              <label>Humedad máxima deseada (%)
+                <input id="humMax" type="number" min="0" max="100" step="0.01" inputmode="decimal" />
+              </label>
+            </div>
+            <div class="auto-help-box">
+              <p>Si la humedad baja de este valor, el sistema intentará humidificar.</p>
+              <p>Si la humedad supera este rango, dejará de humidificar.</p>
+            </div>
+          </article>
+
+          <article class="auto-setting-card">
+            <h4>🌬️ CO2 / ventilación</h4>
+            <p class="muted">Si el sensor de CO2 falla, este control puede no ser confiable.</p>
+            <div class="auto-field-grid">
+              <label>CO2 mínimo deseado (ppm)
+                <input id="co2Min" type="number" min="0" step="0.01" inputmode="decimal" />
+              </label>
+              <label>CO2 máximo deseado (ppm)
+                <input id="co2Max" type="number" min="0" step="0.01" inputmode="decimal" />
+              </label>
+            </div>
+            <div class="auto-help-box">
+              <p>Si el CO2 supera este rango, el sistema usará ventilación para renovar el aire.</p>
+            </div>
+          </article>
+
+          <article class="auto-setting-card">
+            <h4>🌡️ Temperatura</h4>
+            <p class="muted">La temperatura crítica actúa como límite de seguridad.</p>
+            <div class="auto-field-grid">
+              <label>Temperatura mínima deseada (°C)
+                <input id="tempMin" type="number" step="0.01" inputmode="decimal" />
+              </label>
+              <label>Temperatura máxima deseada (°C)
+                <input id="tempMax" type="number" step="0.01" inputmode="decimal" />
+              </label>
+              <label>Temperatura crítica de seguridad (°C)
+                <input id="tempCritical" type="number" step="0.01" inputmode="decimal" />
+              </label>
+            </div>
+            <div class="auto-help-box auto-warning-soft">
+              <p>A partir de la temperatura crítica, el sistema prioriza bajar temperatura por seguridad.</p>
+            </div>
+          </article>
+
+          <article class="auto-setting-card">
+            <h4>⚙️ Reglas de funcionamiento</h4>
+            <p class="muted">Activar exclusión mutua evita que humidificador y ventilación se anulen entre sí.</p>
+            <div class="auto-field-grid">
+              <label>Equipos no funcionan al mismo tiempo
+                <select id="mutualExclusion"><option value="true">Sí</option><option value="false">No</option></select>
+              </label>
+              <label>Cultivo
+                <input id="crop" type="text" placeholder="Melena de León" />
+              </label>
+            </div>
+            <div class="auto-help-box">
+              <p>Si la exclusión mutua está activada, humidificador y ventilación no funcionarán al mismo tiempo.</p>
+            </div>
+          </article>
         </div>
-        <div class="download-grid">
-          <button id="saveSetpoints" class="btn btn-on">Guardar SETs</button>
+
+        <div class="auto-behavior-card" aria-live="polite">
+          <h4>Así funcionará el sistema</h4>
+          <ul id="autoBehaviorSummary">
+            <li>Esperando valores de configuración...</li>
+          </ul>
+        </div>
+
+        <details class="auto-advanced-block">
+          <summary>Configuración avanzada de tiempos</summary>
+          <p class="muted">Estos tiempos mantienen compatibilidad con la configuración actual que consume el firmware.</p>
+          <div class="auto-cards-grid auto-advanced-grid">
+            <article class="auto-setting-card">
+              <h4>Humidificador</h4>
+              <div class="auto-field-grid">
+                <label>Tiempo mínimo encendido (segundos)
+                  <input id="minHumidifierOnSec" type="number" min="0" step="1" inputmode="numeric" />
+                </label>
+                <label>Tiempo mínimo apagado (segundos)
+                  <input id="minHumidifierOffSec" type="number" min="0" step="1" inputmode="numeric" />
+                </label>
+              </div>
+            </article>
+            <article class="auto-setting-card">
+              <h4>Ventilación</h4>
+              <div class="auto-field-grid">
+                <label>Tiempo mínimo encendida (segundos)
+                  <input id="minVentilationOnSec" type="number" min="0" step="1" inputmode="numeric" />
+                </label>
+                <label>Tiempo mínimo apagada (segundos)
+                  <input id="minVentilationOffSec" type="number" min="0" step="1" inputmode="numeric" />
+                </label>
+                <label>Pausa después de ventilar (segundos)
+                  <input id="delayAfterVentilationSec" type="number" min="0" step="1" inputmode="numeric" />
+                </label>
+              </div>
+            </article>
+          </div>
+        </details>
+
+        <div class="download-grid auto-actions">
+          <button id="saveSetpoints" class="btn btn-on">Guardar configuración automática</button>
+          <button id="useRecommendedSetpoints" class="btn btn-secondary">Usar valores recomendados</button>
+          <button id="restoreLoadedSetpoints" class="btn btn-secondary">Restaurar última configuración cargada</button>
         </div>
       </section>
 

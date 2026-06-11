@@ -180,7 +180,13 @@ const els = {
   autoDecisionStatus: $("autoDecisionStatus"),
   activeSetSummary: $("activeSetSummary"),
   setpointsStatus: $("setpointsStatus"),
+  autoSummaryChips: $("autoSummaryChips"),
+  autoBehaviorSummary: $("autoBehaviorSummary"),
+  autoValidationPanel: $("autoValidationPanel"),
+  autoValidationList: $("autoValidationList"),
   saveSetpoints: $("saveSetpoints"),
+  useRecommendedSetpoints: $("useRecommendedSetpoints"),
+  restoreLoadedSetpoints: $("restoreLoadedSetpoints"),
   co2Min: $("co2Min"),
   co2Max: $("co2Max"),
   humMin: $("humMin"),
@@ -274,6 +280,7 @@ const state = {
   pendingCalibrationBySensor: {},
   co2ResetWaiting: false,
   config: null,
+  lastLoadedSetpoints: null,
   recentHistory: [],
   campaignStats: { historyCount: 0, eventsCount: 0, firstReading: null, lastReading: null }
 };
@@ -2065,16 +2072,150 @@ async function saveTimerConfig() {
 
 const setpointFields = ["co2Min","co2Max","humMin","humMax","tempMin","tempMax","tempCritical","minHumidifierOnSec","minHumidifierOffSec","minVentilationOnSec","minVentilationOffSec","delayAfterVentilationSec","mutualExclusion","crop"];
 
+const recommendedSetpoints = {
+  humMin: 80,
+  humMax: 95,
+  co2Min: 850,
+  co2Max: 1100,
+  tempMin: 16,
+  tempMax: 21,
+  tempCritical: 24,
+  minHumidifierOnSec: 29,
+  minHumidifierOffSec: 30,
+  minVentilationOnSec: 60,
+  minVentilationOffSec: 60,
+  delayAfterVentilationSec: 30,
+  mutualExclusion: true,
+  crop: "Melena de León"
+};
+const integerSetpointFields = ["minHumidifierOnSec","minHumidifierOffSec","minVentilationOnSec","minVentilationOffSec","delayAfterVentilationSec"];
+
+function getSetpointFormValues() {
+  const values = {};
+  setpointFields.forEach((field) => {
+    if (!els[field]) return;
+    if (field === "crop") values[field] = els[field].value.trim();
+    else if (field === "mutualExclusion") values[field] = els[field].value === "true";
+    else values[field] = toNumberOrNull(els[field].value);
+  });
+  return values;
+}
+
+function fillSetpointForm(values = {}) {
+  setpointFields.forEach((field) => {
+    if (!els[field]) return;
+    if (field === "mutualExclusion") els[field].value = String(values[field] === true);
+    else els[field].value = values[field] ?? "";
+  });
+  renderAutoSetpointsPreview();
+}
+
+function readSetpointNumber(values, field, fallback = "--") {
+  const value = values[field];
+  return value === null || value === undefined || Number.isNaN(value) ? fallback : value;
+}
+
+function validateAutoSetpoints(values = getSetpointFormValues()) {
+  const warnings = [];
+  const humMin = readSetpointNumber(values, "humMin", null);
+  const humMax = readSetpointNumber(values, "humMax", null);
+  const co2Min = readSetpointNumber(values, "co2Min", null);
+  const co2Max = readSetpointNumber(values, "co2Max", null);
+  const tempMin = readSetpointNumber(values, "tempMin", null);
+  const tempMax = readSetpointNumber(values, "tempMax", null);
+  const tempCritical = readSetpointNumber(values, "tempCritical", null);
+  if (humMin !== null && humMax !== null && humMin >= humMax) warnings.push("La humedad mínima debe ser menor que la máxima.");
+  if ((humMin !== null && (humMin < 0 || humMin > 100)) || (humMax !== null && (humMax < 0 || humMax > 100))) warnings.push("La humedad recomendada debe estar entre 0 y 100 %.");
+  if (co2Min !== null && co2Min <= 0) warnings.push("El CO2 mínimo debe ser positivo.");
+  if (co2Max !== null && co2Max <= 0) warnings.push("El CO2 máximo debe ser positivo.");
+  if (co2Min !== null && co2Max !== null && co2Min >= co2Max) warnings.push("El CO2 mínimo debe ser menor que el máximo.");
+  if (tempMin !== null && tempMax !== null && tempMin >= tempMax) warnings.push("La temperatura mínima debe ser menor que la máxima.");
+  if (tempCritical !== null && tempMax !== null && tempCritical < tempMax) warnings.push("La temperatura crítica debe ser igual o mayor que la máxima.");
+  integerSetpointFields.forEach((field) => {
+    const value = readSetpointNumber(values, field, null);
+    if (value !== null && value < 0) warnings.push("Los tiempos de funcionamiento deben ser iguales o mayores a 0 segundos.");
+    if (value !== null && !Number.isInteger(value)) warnings.push("Los tiempos se redondearán a segundos enteros al guardar.");
+  });
+  return [...new Set(warnings)];
+}
+
+function renderAutoSetpointsPreview() {
+  if (!els.autoSummaryChips && !els.autoBehaviorSummary && !els.autoValidationPanel) return;
+  const values = getSetpointFormValues();
+  const humMin = readSetpointNumber(values, "humMin");
+  const humMax = readSetpointNumber(values, "humMax");
+  const co2Min = readSetpointNumber(values, "co2Min");
+  const co2Max = readSetpointNumber(values, "co2Max");
+  const tempMin = readSetpointNumber(values, "tempMin");
+  const tempMax = readSetpointNumber(values, "tempMax");
+  const tempCritical = readSetpointNumber(values, "tempCritical");
+  const humOn = readSetpointNumber(values, "minHumidifierOnSec");
+  const humOff = readSetpointNumber(values, "minHumidifierOffSec");
+  const ventOn = readSetpointNumber(values, "minVentilationOnSec");
+  const ventOff = readSetpointNumber(values, "minVentilationOffSec");
+  const ventDelay = readSetpointNumber(values, "delayAfterVentilationSec");
+  const exclusion = values.mutualExclusion === true;
+  if (els.autoSummaryChips) {
+    els.autoSummaryChips.innerHTML = `
+      <span class="auto-chip">Humedad ideal: ${humMin}–${humMax} %</span>
+      <span class="auto-chip">CO2 ideal: ${co2Min}–${co2Max} ppm</span>
+      <span class="auto-chip">Temperatura ideal: ${tempMin}–${tempMax} °C</span>
+      <span class="auto-chip">Seguridad térmica: ventilación forzada a partir de ${tempCritical} °C</span>
+      <span class="auto-chip">Humidificador: mínimo ${humOn} s encendido / ${humOff} s apagado</span>
+      <span class="auto-chip">Ventilación: mínimo ${ventOn} s encendida / ${ventOff} s apagada</span>
+      <span class="auto-chip">Exclusión mutua: ${exclusion ? "activada" : "desactivada"}</span>
+    `;
+  }
+  if (els.autoBehaviorSummary) {
+    els.autoBehaviorSummary.innerHTML = `
+      <li>Si la humedad baja de ${humMin} %, el sistema intentará encender el humidificador.</li>
+      <li>Si la humedad supera ${humMax} %, dejará de humidificar.</li>
+      <li>Si el CO2 supera ${co2Max} ppm, el sistema podrá activar ventilación.</li>
+      <li>Si la temperatura supera ${tempCritical} °C, se priorizará ventilación por seguridad.</li>
+      <li>${exclusion ? "Humidificador y ventilación no funcionarán al mismo tiempo." : "Humidificador y ventilación podrán funcionar al mismo tiempo si la lógica lo permite."}</li>
+      <li>La ventilación tendrá una pausa de ${ventDelay} segundos después de cada ciclo.</li>
+    `;
+  }
+  const warnings = validateAutoSetpoints(values);
+  if (els.autoValidationPanel && els.autoValidationList) {
+    els.autoValidationPanel.hidden = warnings.length === 0;
+    els.autoValidationList.innerHTML = warnings.map((warning) => `<li>${warning}</li>`).join("");
+  }
+}
+
+function useRecommendedSetpoints() {
+  fillSetpointForm(recommendedSetpoints);
+  if (els.setpointsStatus) els.setpointsStatus.textContent = "Valores recomendados cargados. Revisá y guardá para aplicarlos.";
+}
+
+function restoreLoadedSetpoints() {
+  if (!state.lastLoadedSetpoints) {
+    if (els.setpointsStatus) els.setpointsStatus.textContent = "Todavía no hay una configuración cargada para restaurar.";
+    return;
+  }
+  fillSetpointForm(state.lastLoadedSetpoints);
+  if (els.setpointsStatus) els.setpointsStatus.textContent = "Última configuración cargada restaurada.";
+}
+
+function normalizeSetpointPayload(payload) {
+  integerSetpointFields.forEach((field) => {
+    if (payload[field] !== null && payload[field] !== undefined && !Number.isNaN(payload[field])) payload[field] = Math.round(payload[field]);
+  });
+  return payload;
+}
+
+
 function setManualControlsEnabled(enabled) {
   document.querySelectorAll("button[data-relay]").forEach((button) => {
     button.disabled = !enabled;
     button.classList.toggle("btn-disabled", !enabled);
   });
   const selectedMode = els.modeSelect?.value || (state.config || {}).mode;
-  els.manualControlHint.textContent = enabled ? "" : `${selectedMode === "timer" ? "Modo timer" : "Modo automático"} activo: los relés manuales están deshabilitados.`;
+  if (els.manualControlHint) els.manualControlHint.textContent = enabled ? "" : `${selectedMode === "timer" ? "Modo timer" : "Modo automático"} activo: los relés manuales están deshabilitados.`;
 }
 
 function renderAutomaticDecision() {
+  if (!els.autoDecisionStatus) return;
   const latest = state.latest;
   const config = state.config;
   if (!latest || !config) {
@@ -2140,6 +2281,7 @@ function buildTimerCompactLines(timer = {}) {
 }
 
 function renderSetSummary() {
+  if (!els.activeSetSummary) return;
   const config = state.config;
   if (!config) {
     els.activeSetSummary.innerHTML = "<p>Esperando configuración...</p>";
@@ -2172,33 +2314,28 @@ function renderSetSummary() {
 
 function renderConfig(config) {
   if (!config || typeof config !== "object") {
-    els.modeStatus.textContent = "Advertencia: no se pudo cargar config.json";
-    els.setpointsStatus.textContent = "Advertencia: no se pudo cargar config.json";
+    if (els.modeStatus) els.modeStatus.textContent = "Advertencia: no se pudo cargar config.json";
+    if (els.setpointsStatus) els.setpointsStatus.textContent = "Advertencia: no se pudo cargar config.json";
     return;
   }
   const mode = getTimerMode(config.mode);
-  els.currentMode.value = mode;
-  els.modeSelect.value = mode;
-  els.modeStatus.textContent = `Modo actual: ${mode}`;
+  if (els.currentMode) els.currentMode.value = mode;
+  if (els.modeSelect) els.modeSelect.value = mode;
+  if (els.modeStatus) els.modeStatus.textContent = `Modo actual: ${mode}`;
   setManualControlsEnabled(mode === "manual");
-  hydrateTimerForm(config.timer || timerDefaults);
+  if (els.timerConfigSection) hydrateTimerForm(config.timer || timerDefaults);
   updateTimerVisibility(mode);
   diag.timerConfigured = mode === "timer" ? "Sí" : "No";
   diag.timerUpdatedAt = config.timer?.updatedAtWeb || "--";
   updateDiagnostics();
-  setpointFields.forEach((f) => {
-    if (!els[f]) return;
-    if (f === "mutualExclusion") {
-      els[f].value = String(config[f] === true);
-    } else {
-      els[f].value = config[f] ?? "";
-    }
-  });
-  els.setpointsStatus.textContent = "SETs listos para edición";
-  renderSensorAmbientConfig();
+  state.lastLoadedSetpoints = {};
+  setpointFields.forEach((field) => { state.lastLoadedSetpoints[field] = config[field]; });
+  fillSetpointForm(state.lastLoadedSetpoints);
+  if (els.setpointsStatus) els.setpointsStatus.textContent = "Configuración automática lista para editar";
+  if (els.sensorAmbientTypeSelect) renderSensorAmbientConfig();
   renderSetSummary();
   renderAutomaticDecision();
-  renderHomeOverview();
+  if (els.overallStatusCard) renderHomeOverview();
 }
 
 async function fetchConfig() {
@@ -2208,8 +2345,8 @@ async function fetchConfig() {
     renderConfig(config);
   } catch (error) {
     console.error("Error config:", error);
-    els.modeStatus.textContent = "Advertencia: config no disponible";
-    els.setpointsStatus.textContent = "Advertencia: config no disponible";
+    if (els.modeStatus) els.modeStatus.textContent = "Advertencia: config no disponible";
+    if (els.setpointsStatus) els.setpointsStatus.textContent = "Advertencia: config no disponible";
   }
 }
 
@@ -2236,23 +2373,20 @@ async function applyMode() {
 }
 
 async function saveSetpoints() {
-  const payload = { updatedAtWeb: Date.now(), updatedFrom: "dashboard_setpoints" };
-  setpointFields.forEach((f) => {
-    if (f === "crop") payload[f] = els[f].value.trim();
-    else if (f === "mutualExclusion") payload[f] = els[f].value === "true";
-    else payload[f] = toNumberOrNull(els[f].value);
-  });
+  const payload = normalizeSetpointPayload({ updatedAtWeb: Date.now(), updatedFrom: "dashboard_setpoints", ...getSetpointFormValues() });
+  const warnings = validateAutoSetpoints(payload);
+  if (warnings.length && els.setpointsStatus) els.setpointsStatus.textContent = "Configuración guardable con advertencias visibles.";
   try {
     const response = await fetch(buildUrl(configPath), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     diag.lastPatchStatus = `HTTP ${response.status}`;
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    els.setpointsStatus.textContent = "SETs guardados correctamente";
+    els.setpointsStatus.textContent = "Configuración automática guardada correctamente";
     updateDiagnostics();
     await fetchConfig();
     if (PAGE === "graficos") fetchAndRenderCharts();
   } catch (error) {
     console.error("Error guardando setpoints:", error);
-    els.setpointsStatus.textContent = "Error guardando SETs";
+    els.setpointsStatus.textContent = "Error guardando configuración automática";
   }
 }
 
@@ -2292,6 +2426,11 @@ on(els.useTimerTestValues, "click", useTimerTestValues);
 on(els.useTimerRecommendedValues, "click", useTimerRecommendedValues);
 on(els.saveTimerConfig, "click", saveTimerConfig);
 on(els.saveSetpoints, "click", saveSetpoints);
+on(els.useRecommendedSetpoints, "click", useRecommendedSetpoints);
+on(els.restoreLoadedSetpoints, "click", restoreLoadedSetpoints);
+setpointFields.forEach((field) => {
+  on(els[field], field === "mutualExclusion" ? "change" : "input", renderAutoSetpointsPreview);
+});
 on(els.refreshCharts, "click", fetchAndRenderCharts);
 on(els.chartRangeSelect, "change", fetchAndRenderCharts);
 on(els.chartTickSelect, "change", fetchAndRenderCharts);
