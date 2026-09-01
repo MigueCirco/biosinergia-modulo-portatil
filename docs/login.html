@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#166534" />
+  <title>BioSinergia · Ingreso</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .login-shell{min-height:100vh;display:grid;place-items:center;padding:24px;background:#f4fbf7}.login-card{width:min(460px,100%);padding:28px}.login-brand{display:flex;gap:14px;align-items:center;margin-bottom:22px}.login-brand .brand-logo{font-size:32px}.login-form{display:grid;gap:14px}.login-form label{display:grid;gap:6px}.login-form input{width:100%;box-sizing:border-box}.login-actions{display:grid;gap:10px;margin-top:6px}.login-status{min-height:24px}.login-note{margin-top:18px;font-size:.92rem}
+  </style>
+</head>
+<body>
+  <main class="login-shell">
+    <section class="card login-card" aria-labelledby="loginTitle">
+      <div class="login-brand">
+        <div class="brand-logo" aria-hidden="true">🌱</div>
+        <div><h1 id="loginTitle">BioSinergia</h1><p>Módulo Portátil IoT</p></div>
+      </div>
+      <h2>Ingresar</h2>
+      <p class="muted">Acceso protegido para monitoreo y configuración del módulo.</p>
+      <form id="loginForm" class="login-form">
+        <label>Correo electrónico<input id="email" type="email" autocomplete="username" required /></label>
+        <label>Contraseña<input id="password" type="password" autocomplete="current-password" required /></label>
+        <div class="login-actions">
+          <button class="btn btn-on" type="submit">Ingresar</button>
+          <button class="btn btn-secondary" id="resetPassword" type="button">Olvidé mi contraseña</button>
+        </div>
+      </form>
+      <p id="loginStatus" class="muted login-status" role="status" aria-live="polite"></p>
+      <p id="setupNote" class="muted login-note" hidden>Firebase Authentication aún no fue vinculado a esta rama. Falta completar la Web API key y habilitar Email/Password en el proyecto Firebase.</p>
+    </section>
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const form = document.getElementById('loginForm');
+    const statusEl = document.getElementById('loginStatus');
+    const setupNote = document.getElementById('setupNote');
+    const next = new URLSearchParams(location.search).get('next') || 'index.html';
+
+    if (!window.BioSinergiaAuth?.configReady()) {
+      setupNote.hidden = false;
+      statusEl.textContent = 'Configuración Firebase pendiente.';
+    }
+
+    window.BioSinergiaAuth?.ensureSession().then((session) => {
+      if (session) location.replace(next);
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      statusEl.textContent = 'Ingresando…';
+      try {
+        await window.BioSinergiaAuth.signIn(
+          document.getElementById('email').value.trim(),
+          document.getElementById('password').value
+        );
+        location.replace(next);
+      } catch (error) {
+        console.error(error);
+        statusEl.textContent = 'No se pudo iniciar sesión. Verificá correo, contraseña y configuración Firebase.';
+      }
+    });
+
+    document.getElementById('resetPassword').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      if (!email) { statusEl.textContent = 'Ingresá tu correo para solicitar el restablecimiento.'; return; }
+      try {
+        await window.BioSinergiaAuth.sendPasswordReset(email);
+        statusEl.textContent = 'Si el correo está registrado, recibirás las instrucciones de restablecimiento.';
+      } catch (error) {
+        console.error(error);
+        statusEl.textContent = 'No se pudo solicitar el restablecimiento en este momento.';
+      }
+    });
+  </script>
+</body>
+</html>
