@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "userDevices": {
+    "HUMAN_UID_REPLACE": {
+      "biosinergia_001": {
+        "active": true,
+        "role": "admin"
+      }
+    }
+  },
+  "devicePrincipals": {
+    "DEVICE_AUTH_UID_REPLACE": "biosinergia_001"
+  },
+  "devices": {
+    "biosinergia_001": {
+      "meta": {
+        "deviceId": "biosinergia_001",
+        "name": "BioSinergia Módulo Portátil IoT",
+        "timezone": "America/Argentina/Tucuman",
+        "deploymentState": "commissioning"
+      }
+    }
+  }
+}
