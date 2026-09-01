@@ -1,0 +1,80 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "schemaVersion": {
+      ".read": "auth != null",
+      ".write": false
+    },
+
+    "userDevices": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$deviceId": {
+          ".write": false,
+          ".validate": "newData.hasChildren(['role','active']) && newData.child('active').isBoolean() && newData.child('role').isString() && (newData.child('role').val() === 'admin' || newData.child('role').val() === 'technician' || newData.child('role').val() === 'operator' || newData.child('role').val() === 'viewer')"
+        }
+      }
+    },
+
+    "devicePrincipals": {
+      "$uid": {
+        ".read": false,
+        ".write": false,
+        ".validate": "newData.isString()"
+      }
+    },
+
+    "devices": {
+      "$deviceId": {
+        ".read": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true",
+
+        "meta": {
+          ".write": false
+        },
+
+        "latest": {
+          ".write": "auth != null && root.child('devicePrincipals').child(auth.uid).val() === $deviceId",
+          ".validate": "newData.hasChildren(['timestamp'])"
+        },
+
+        "presence": {
+          ".write": "auth != null && root.child('devicePrincipals').child(auth.uid).val() === $deviceId",
+          ".validate": "newData.hasChildren(['lastSeenUtcMs','source']) && newData.child('lastSeenUtcMs').isNumber() && newData.child('source').isString()"
+        },
+
+        "history": {
+          "$recordId": {
+            ".write": "auth != null && root.child('devicePrincipals').child(auth.uid).val() === $deviceId && (!data.exists() || data.val() === newData.val())",
+            ".validate": "newData.hasChildren(['timestamp'])"
+          }
+        },
+
+        "events": {
+          "$eventId": {
+            ".write": "auth != null && root.child('devicePrincipals').child(auth.uid).val() === $deviceId && (!data.exists() || data.val() === newData.val())"
+          }
+        },
+
+        "config": {
+          ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && (root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'admin' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'technician')",
+          "mode": {
+            ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'operator' && (newData.val() === 'manual' || newData.val() === 'timer')"
+          },
+          "timer": {
+            ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'operator'"
+          }
+        },
+
+        "calibration": {
+          ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && (root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'admin' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'technician')"
+        },
+
+        "commands": {
+          ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && (root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'admin' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'technician' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'operator')"
+        }
+      }
+    }
+  }
+}

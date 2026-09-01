@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 2,
+  "userDevices": {
+    "ADMIN_UID_REPLACE": {
+      "biosinergia_001": {
+        "active": true,
+        "role": "admin"
+      }
+    },
+    "OPERATOR_UID_REPLACE": {
+      "biosinergia_001": {
+        "active": true,
+        "role": "operator"
+      }
+    }
+  },
+  "devicePrincipals": {
+    "DEVICE_AUTH_UID_REPLACE": "biosinergia_001"
+  },
+  "devices": {
+    "biosinergia_001": {
+      "meta": {
+        "deviceId": "biosinergia_001",
+        "name": "BioSinergia Módulo Portátil IoT",
+        "timezone": "America/Argentina/Tucuman",
+        "deploymentState": "commissioning",
+        "profile": "fungi_portable_temp_humidity_v1",
+        "capabilities": {
+          "ambientTemperature": true,
+          "ambientHumidity": true,
+          "co2": false,
+          "humidifier": true,
+          "ventilation": true,
+          "manualMode": true,
+          "timerMode": true,
+          "automaticHumidityControl": true,
+          "automaticVentilationByCo2": false
+        }
+      }
+    }
+  }
+}

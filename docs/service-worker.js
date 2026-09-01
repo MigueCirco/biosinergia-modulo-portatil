@@ -1,4 +1,4 @@
-const APP_VERSION = "biosinergia-pwa-v1-7-1";
+const APP_VERSION = "biosinergia-pwa-v1-8-0";
 const CACHE_NAME = APP_VERSION;
 const STATIC_ASSETS = [
   "/biosinergia-modulo-portatil/",
@@ -7,8 +7,12 @@ const STATIC_ASSETS = [
   "/biosinergia-modulo-portatil/calibracion.html",
   "/biosinergia-modulo-portatil/configuracion.html",
   "/biosinergia-modulo-portatil/admin.html",
+  "/biosinergia-modulo-portatil/login.html",
   "/biosinergia-modulo-portatil/style.css",
   "/biosinergia-modulo-portatil/app.js",
+  "/biosinergia-modulo-portatil/auth.js",
+  "/biosinergia-modulo-portatil/auth-guard.js",
+  "/biosinergia-modulo-portatil/firebase-config.js",
   "/biosinergia-modulo-portatil/manifest.webmanifest",
   "/biosinergia-modulo-portatil/icons/icon.svg",
   "/biosinergia-modulo-portatil/icons/icon-192.png",
@@ -23,13 +27,19 @@ const NETWORK_FIRST_PATHS = new Set([
   "/biosinergia-modulo-portatil/calibracion.html",
   "/biosinergia-modulo-portatil/configuracion.html",
   "/biosinergia-modulo-portatil/admin.html",
+  "/biosinergia-modulo-portatil/login.html",
   "/biosinergia-modulo-portatil/app.js",
+  "/biosinergia-modulo-portatil/auth.js",
+  "/biosinergia-modulo-portatil/auth-guard.js",
+  "/biosinergia-modulo-portatil/firebase-config.js",
   "/biosinergia-modulo-portatil/style.css",
   "/biosinergia-modulo-portatil/manifest.webmanifest"
 ]);
 
 function isFirebaseRequest(url) {
-  return url.hostname.includes("firebaseio.com");
+  return url.hostname.includes("firebaseio.com")
+    || url.hostname.includes("identitytoolkit.googleapis.com")
+    || url.hostname.includes("securetoken.googleapis.com");
 }
 
 function isNetworkFirstRequest(request, url) {
@@ -98,6 +108,8 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const requestUrl = new URL(request.url);
 
+  // Datos, Authentication y refresh-token siempre deben venir de la red.
+  // Nunca cachear respuestas privadas de Firebase.
   if (isFirebaseRequest(requestUrl)) {
     const liveRequest = new Request(event.request, { cache: "no-store" });
     event.respondWith(fetch(liveRequest));
