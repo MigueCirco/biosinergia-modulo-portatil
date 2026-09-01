@@ -14,9 +14,9 @@ Para la entrega inmediata del módulo portátil se simplifica el alcance físico
 
 - Sensado activo: **temperatura ambiente + humedad ambiente**.
 - CO2: **no instalado / no requerido** en esta versión. Los históricos antiguos de CO2 no se eliminan.
-- Humidificador: se conserva como actuador disponible si el montaje físico lo utiliza.
+- Humidificador: se conserva como actuador y puede seguir usando control manual, timer o control automático por humedad cuando el firmware/configuración lo permita.
 - Ventilación: control **Manual** o **Timer**.
-- Automático por CO2: fuera del alcance actual.
+- Ventilación automática basada en CO2: fuera del alcance actual.
 - El productor decidirá el uso de ventilación a partir de la observación del cultivo y podrá programar ciclos de tiempo desde la PWA.
 - La arquitectura mantiene `capabilities.co2=false` para que futuras interfaces sepan ocultar esa variable sin destruir compatibilidad histórica.
 
@@ -31,6 +31,7 @@ Perfil propuesto: `fungi_portable_temp_humidity_v1`.
 - `timestamp` sigue siendo requerido por compatibilidad; el firmware nuevo debe migrarlo progresivamente a UTC epoch real.
 - Usuario humano y ESP32 tendrán identidades Firebase distintas.
 - Los campos legacy de CO2 pueden seguir existiendo en registros anteriores; no son obligatorios para nuevos registros del perfil actual.
+- Retirar CO2 no implica retirar toda la lógica automática: el control por humedad puede mantenerse separado de la ventilación.
 
 ## PWA e identidad visual
 
@@ -88,7 +89,8 @@ Para esta versión, el firmware objetivo debe priorizar:
 - lectura estable de temperatura y humedad;
 - modo Manual;
 - modo Timer;
-- control de ventilación;
+- ventilación gobernada por Manual/Timer, no por CO2;
+- control de humidificación por humedad preservable como función independiente;
 - estado real reportado de actuadores;
 - NTP/UTC;
 - Firebase Authentication de dispositivo;
@@ -123,6 +125,7 @@ La versión puede considerarse apta cuando:
 - temperatura y humedad llegan en vivo;
 - el estado de humidificador/ventilación refleja el estado físico real;
 - ventilación funciona en Manual y Timer;
+- el control de humedad no depende de CO2;
 - históricos se registran con timestamp válido;
 - `presence` cambia visualmente a OFFLINE ante pérdida de heartbeat;
 - un navegador sin login no accede a los datos;
