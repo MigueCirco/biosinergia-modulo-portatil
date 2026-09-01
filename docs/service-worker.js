@@ -1,4 +1,4 @@
-const APP_VERSION = "biosinergia-pwa-v1-7-0";
+const APP_VERSION = "biosinergia-pwa-v1-7-1";
 const CACHE_NAME = APP_VERSION;
 const STATIC_ASSETS = [
   "/biosinergia-modulo-portatil/",
@@ -11,7 +11,9 @@ const STATIC_ASSETS = [
   "/biosinergia-modulo-portatil/app.js",
   "/biosinergia-modulo-portatil/manifest.webmanifest",
   "/biosinergia-modulo-portatil/icons/icon.svg",
-  "/biosinergia-modulo-portatil/icons/icon-maskable.svg"
+  "/biosinergia-modulo-portatil/icons/icon-192.png",
+  "/biosinergia-modulo-portatil/icons/icon-512.png",
+  "/biosinergia-modulo-portatil/icons/icon-maskable-512.png"
 ];
 
 const NETWORK_FIRST_PATHS = new Set([
@@ -22,7 +24,8 @@ const NETWORK_FIRST_PATHS = new Set([
   "/biosinergia-modulo-portatil/configuracion.html",
   "/biosinergia-modulo-portatil/admin.html",
   "/biosinergia-modulo-portatil/app.js",
-  "/biosinergia-modulo-portatil/style.css"
+  "/biosinergia-modulo-portatil/style.css",
+  "/biosinergia-modulo-portatil/manifest.webmanifest"
 ]);
 
 function isFirebaseRequest(url) {
