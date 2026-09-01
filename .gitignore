@@ -19,6 +19,8 @@ firmware/**/.pio/
 *.pem
 *.key
 *.p12
+firebase/seed.local.json
+firebase/provisioning.local.json
 
 # Node/build artifacts
 node_modules/
