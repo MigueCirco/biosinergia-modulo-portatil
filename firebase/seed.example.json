@@ -27,7 +27,8 @@
           "ventilation": true,
           "manualMode": true,
           "timerMode": true,
-          "automaticMode": false
+          "automaticHumidityControl": true,
+          "automaticVentilationByCo2": false
         }
       }
     }
