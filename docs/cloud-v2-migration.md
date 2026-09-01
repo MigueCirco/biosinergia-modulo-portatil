@@ -43,12 +43,23 @@ La aplicación instalable usa el logo oficial de BioSinergia como icono:
 
 `manifest.webmanifest` es la fuente principal para instalación. El Service Worker versiona y cachea estos recursos estáticos, pero nunca cachea respuestas de RTDB ni de Firebase Authentication.
 
+## Firebase Web App
+
+La Web App del proyecto `biosinergia-modulo-portatil` ya fue registrada y su configuración pública quedó vinculada en `docs/firebase-config.js`.
+
+- `authDomain`: `biosinergia-modulo-portatil.firebaseapp.com`
+- `databaseURL`: `https://biosinergia-modulo-portatil-default-rtdb.firebaseio.com`
+- `projectId`: `biosinergia-modulo-portatil`
+- `appId`: `1:861918836261:web:f35c3df1e2d2a47ba3b1cc`
+
+No se requiere Analytics para la autenticación ni para RTDB; el `measurementId` se conserva solo como parte de la configuración pública registrada.
+
 ## Orden obligatorio de activación
 
 1. Firebase Console: habilitar Authentication > Email/Password.
-2. Crear/usar una Web App del proyecto y copiar su Web API key a `docs/firebase-config.js`.
-3. Crear un usuario humano sin compartir su contraseña.
-4. Anotar su UID y asociarlo en `/userDevices/{uid}/biosinergia_001` con `active=true` y rol.
+2. **COMPLETADO:** registrar Web App y vincular `docs/firebase-config.js`.
+3. Crear los usuarios humanos sin compartir sus contraseñas.
+4. Anotar cada UID y asociarlo en `/userDevices/{uid}/biosinergia_001` con `active=true` y rol.
 5. Crear una cuenta técnica independiente para la ESP32.
 6. Anotar el UID técnico y asociarlo en `/devicePrincipals/{uid} = "biosinergia_001"`.
 7. Incorporar al repositorio el firmware principal efectivamente cargado en la ESP32.
@@ -57,16 +68,23 @@ La aplicación instalable usa el logo oficial de BioSinergia como icono:
 10. Confirmar que la PWA autenticada puede leer y que un navegador anónimo no puede leer.
 11. Recién entonces desplegar `firebase/database.rules.json`.
 
+## Roles humanos previstos
+
+- `mfadel0690@gmail.com` → `admin`.
+- `Elvalab1@gmail.com` → `operator`/viewer operativo. No debe tener acceso administrativo a reglas, identidades técnicas ni borrados destructivos.
+
+Las contraseñas nunca deben escribirse en Git, documentación, chat técnico ni firmware.
+
 ## Estado de la PWA Auth
 
 Esta rama contiene:
 
-- `firebase-config.js`: configuración pública del proyecto (API key pendiente).
+- `firebase-config.js`: **configuración pública real ya vinculada**.
 - `auth.js`: Email/Password vía APIs oficiales de Firebase Identity Toolkit y renovación de ID token.
 - `auth-guard.js`: redirección a `login.html` cuando no existe sesión.
 - `login.html`: login y restablecimiento de contraseña.
 
-Todavía no se conectaron estos scripts a las páginas operativas porque eso debe hacerse en el mismo paso en que se complete la API key y se pruebe una cuenta real. Dejar el guard activo con una configuración incompleta bloquearía la interfaz existente.
+El siguiente paso es habilitar Email/Password y crear/probar al menos una cuenta humana real. Después se conectará el guard a todas las páginas operativas y se hará que cada request RTDB use el ID token de la sesión.
 
 ## Reglas RTDB propuestas
 
