@@ -67,10 +67,6 @@
 
         "commands": {
           ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && (root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'admin' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'technician')"
-        },
-
-        "$other": {
-          ".validate": false
         }
       }
     }
