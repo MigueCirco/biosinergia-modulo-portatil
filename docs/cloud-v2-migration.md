@@ -22,6 +22,21 @@ Para la entrega inmediata del módulo portátil se simplifica el alcance físico
 
 Perfil propuesto: `fungi_portable_temp_humidity_v1`.
 
+## Estado de identidades Firebase
+
+- Authentication Email/Password: habilitado.
+- Web App del proyecto: registrada y vinculada.
+- Cuenta humana administradora: creada.
+- Cuenta humana operadora/cliente: creada.
+- Cuenta técnica exclusiva para `biosinergia_001`: creada.
+- Los UIDs reales no se versionan en GitHub. Deben mantenerse en provisioning local/seguro y cargarse en RTDB mediante `userDevices` y `devicePrincipals`.
+
+Roles previstos:
+
+- `admin`: lectura, configuración, calibración, comandos y administración técnica.
+- `operator`: lectura, históricos, comandos Manual y edición de `mode` (`manual`/`timer`) y `config/timer`; sin calibración ni SETs avanzados.
+- identidad técnica ESP32: escritura de `latest`, `presence`, `history` y `events` únicamente para `biosinergia_001`.
+
 ## Decisiones de compatibilidad
 
 - Se conserva el proyecto Firebase `biosinergia-modulo-portatil`.
@@ -29,7 +44,7 @@ Perfil propuesto: `fungi_portable_temp_humidity_v1`.
 - Se conserva GitHub Pages durante la primera fase.
 - Se agrega `/devices/biosinergia_001/presence` para ONLINE/OFFLINE.
 - `timestamp` sigue siendo requerido por compatibilidad; el firmware nuevo debe migrarlo progresivamente a UTC epoch real.
-- Usuario humano y ESP32 tendrán identidades Firebase distintas.
+- Usuario humano y ESP32 tienen identidades Firebase distintas.
 - Los campos legacy de CO2 pueden seguir existiendo en registros anteriores; no son obligatorios para nuevos registros del perfil actual.
 - Retirar CO2 no implica retirar toda la lógica automática: el control por humedad puede mantenerse separado de la ventilación.
 
@@ -56,35 +71,28 @@ No se requiere Analytics para la autenticación ni para RTDB; el `measurementId`
 
 ## Orden obligatorio de activación
 
-1. Firebase Console: habilitar Authentication > Email/Password.
+1. **COMPLETADO:** habilitar Authentication > Email/Password.
 2. **COMPLETADO:** registrar Web App y vincular `docs/firebase-config.js`.
-3. Crear los usuarios humanos sin compartir sus contraseñas.
-4. Anotar cada UID y asociarlo en `/userDevices/{uid}/biosinergia_001` con `active=true` y rol.
-5. Crear una cuenta técnica independiente para la ESP32.
-6. Anotar el UID técnico y asociarlo en `/devicePrincipals/{uid} = "biosinergia_001"`.
+3. **COMPLETADO:** crear usuario humano admin y usuario operator.
+4. **COMPLETADO:** crear identidad técnica exclusiva para la ESP32.
+5. Cargar los vínculos reales en `/userDevices/{uid}/biosinergia_001` y `/devicePrincipals/{uid}` sin versionar los UIDs.
+6. Probar login real de ambas cuentas en la PWA.
 7. Incorporar al repositorio el firmware principal efectivamente cargado en la ESP32.
 8. Integrar el firmware con Authentication, timestamps UTC y `presence`.
 9. Confirmar que la ESP32 autenticada escribe `latest`, `history`, `events` y `presence` sin necesitar CO2.
-10. Confirmar que la PWA autenticada puede leer y que un navegador anónimo no puede leer.
+10. Confirmar que el rol `operator` solo puede usar lectura, Manual y Timer.
 11. Recién entonces desplegar `firebase/database.rules.json`.
-
-## Roles humanos previstos
-
-- `mfadel0690@gmail.com` → `admin`.
-- `Elvalab1@gmail.com` → `operator`/viewer operativo. No debe tener acceso administrativo a reglas, identidades técnicas ni borrados destructivos.
-
-Las contraseñas nunca deben escribirse en Git, documentación, chat técnico ni firmware.
 
 ## Estado de la PWA Auth
 
 Esta rama contiene:
 
-- `firebase-config.js`: **configuración pública real ya vinculada**.
+- `firebase-config.js`: configuración pública real ya vinculada.
 - `auth.js`: Email/Password vía APIs oficiales de Firebase Identity Toolkit y renovación de ID token.
 - `auth-guard.js`: redirección a `login.html` cuando no existe sesión.
 - `login.html`: login y restablecimiento de contraseña.
 
-El siguiente paso es habilitar Email/Password y crear/probar al menos una cuenta humana real. Después se conectará el guard a todas las páginas operativas y se hará que cada request RTDB use el ID token de la sesión.
+El siguiente paso de código es conectar todas las llamadas REST de `app.js` al ID token de la sesión y activar el guard en todas las páginas operativas. Ese cambio debe probarse antes de fusionarlo a producción.
 
 ## Reglas RTDB propuestas
 
@@ -92,6 +100,7 @@ El siguiente paso es habilitar Email/Password y crear/probar al menos una cuenta
 
 - humanos autorizados: lectura del dispositivo;
 - `admin` / `technician`: `config`, `calibration`, `commands`;
+- `operator`: `commands`, `config/mode` (solo manual/timer) y `config/timer`;
 - identidad técnica: `latest`, `presence`, `history`, `events`.
 
 El árbol `userDevices` y `devicePrincipals` debe ser aprovisionado por un administrador confiable, no por la PWA.
