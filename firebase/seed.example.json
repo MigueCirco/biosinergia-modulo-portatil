@@ -17,7 +17,18 @@
         "deviceId": "biosinergia_001",
         "name": "BioSinergia Módulo Portátil IoT",
         "timezone": "America/Argentina/Tucuman",
-        "deploymentState": "commissioning"
+        "deploymentState": "commissioning",
+        "profile": "fungi_portable_temp_humidity_v1",
+        "capabilities": {
+          "ambientTemperature": true,
+          "ambientHumidity": true,
+          "co2": false,
+          "humidifier": true,
+          "ventilation": true,
+          "manualMode": true,
+          "timerMode": true,
+          "automaticMode": false
+        }
       }
     }
   }
