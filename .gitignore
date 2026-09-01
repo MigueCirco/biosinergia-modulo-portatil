@@ -1,0 +1,32 @@
+# Local secrets / Firebase runtime configuration
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Firmware secrets and machine-local overrides
+firmware/**/secrets.h
+firmware/**/config.local.h
+firmware/**/.pio/
+
+# Firebase local state / private credentials
+.firebase/
+.firebase-cache/
+*service-account*.json
+*serviceAccount*.json
+*.pem
+*.key
+*.p12
+
+# Node/build artifacts
+node_modules/
+dist/
+build/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
