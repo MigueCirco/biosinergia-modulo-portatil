@@ -13,7 +13,7 @@
         ".read": "auth != null && auth.uid === $uid",
         "$deviceId": {
           ".write": false,
-          ".validate": "newData.hasChildren(['role','active']) && newData.child('active').isBoolean() && newData.child('role').isString()"
+          ".validate": "newData.hasChildren(['role','active']) && newData.child('active').isBoolean() && newData.child('role').isString() && (newData.child('role').val() === 'admin' || newData.child('role').val() === 'technician' || newData.child('role').val() === 'operator' || newData.child('role').val() === 'viewer')"
         }
       }
     },
@@ -58,7 +58,13 @@
         },
 
         "config": {
-          ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && (root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'admin' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'technician')"
+          ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && (root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'admin' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'technician')",
+          "mode": {
+            ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'operator' && (newData.val() === 'manual' || newData.val() === 'timer')"
+          },
+          "timer": {
+            ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'operator'"
+          }
         },
 
         "calibration": {
@@ -66,7 +72,7 @@
         },
 
         "commands": {
-          ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && (root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'admin' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'technician')"
+          ".write": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).child('active').val() === true && (root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'admin' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'technician' || root.child('userDevices').child(auth.uid).child($deviceId).child('role').val() === 'operator')"
         }
       }
     }
